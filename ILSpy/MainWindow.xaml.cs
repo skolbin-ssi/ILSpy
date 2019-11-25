@@ -83,12 +83,6 @@ namespace ICSharpCode.ILSpy
 			get { return sessionSettings; }
 		}
 
-		public ContentPresenter mainPane {
-			get {
-				return FindResource("MainPane") as ContentPresenter;
-			}
-		}
-
 		public SharpTreeView treeView {
 			get {
 				return FindResource("TreeView") as SharpTreeView;
@@ -126,7 +120,7 @@ namespace ICSharpCode.ILSpy
 
 			InitializeComponent();
 
-			sessionSettings.DockLayout.Deserialize(new XmlLayoutSerializer(DockManager));
+			DockWorkspace.Instance.InitializeLayout(DockManager);
 
 			sessionSettings.FilterSettings.PropertyChanged += filterSettings_PropertyChanged;
 
@@ -462,8 +456,11 @@ namespace ICSharpCode.ILSpy
 
 		void MainWindow_Loaded(object sender, RoutedEventArgs e)
 		{
-			DockWorkspace.Instance.ToolPanes.Add(AssemblyListPaneModel.Instance);
-			DockWorkspace.Instance.Documents.Add(new DecompiledDocumentModel() { IsCloseable = false, Language = CurrentLanguage, LanguageVersion = CurrentLanguageVersion });
+			DockWorkspace.Instance.Documents.Add(new DecompiledDocumentModel() {
+				IsCloseable = false,
+				Language = CurrentLanguage,
+				LanguageVersion = CurrentLanguageVersion
+			});
 			DockWorkspace.Instance.ActiveDocument = DockWorkspace.Instance.Documents.First();
 
 			ILSpySettings spySettings = this.spySettingsForMainWindow_Loaded;
@@ -920,7 +917,7 @@ namespace ICSharpCode.ILSpy
 
 		void SearchCommandExecuted(object sender, ExecutedRoutedEventArgs e)
 		{
-			DockWorkspace.Instance.ToolPanes.Add(SearchPaneModel.Instance);
+			SearchPaneModel.Instance.IsVisible = true;
 		}
 		#endregion
 

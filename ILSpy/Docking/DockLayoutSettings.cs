@@ -27,9 +27,46 @@ namespace ICSharpCode.ILSpy.Docking
 {
 	public class DockLayoutSettings
 	{
+		/// <remarks>NOTE: do NOT remove any of the (empty) sections, the deserializer is not very resilient and expects this exact order of elements!</remarks>
+		private const string DefaultLayout = @"
+<LayoutRoot>
+	<RootPanel Orientation=""Horizontal"">
+		<LayoutAnchorablePaneGroup Orientation=""Horizontal"" DockWidth=""300"">
+			<LayoutAnchorablePane>
+				<LayoutAnchorable ContentId=""assemblyListPane"" />
+			</LayoutAnchorablePane>
+		</LayoutAnchorablePaneGroup>
+		<LayoutPanel Orientation=""Vertical"">
+			<LayoutAnchorablePaneGroup Orientation=""Horizontal"" DockHeight=""225"">
+				<LayoutAnchorablePane Id=""3ce12a2b-e6be-47cd-9787-fbf74bb9f157"" />
+			</LayoutAnchorablePaneGroup>
+			<LayoutDocumentPane />
+			<LayoutAnchorablePaneGroup Orientation=""Horizontal"" DockHeight=""225"">
+				<LayoutAnchorablePane Id=""8858bc50-019a-480e-b402-30a890e7c68f"" />
+			</LayoutAnchorablePaneGroup>
+		</LayoutPanel>
+	</RootPanel>
+	<TopSide />
+	<RightSide />
+	<LeftSide />
+	<BottomSide />
+	<FloatingWindows />
+	<Hidden>
+		<LayoutAnchorable ContentId=""debugStepsPane"" PreviousContainerId=""3ce12a2b-e6be-47cd-9787-fbf74bb9f157"" PreviousContainerIndex=""0"" />
+		<LayoutAnchorable ContentId=""searchPane"" PreviousContainerId=""3ce12a2b-e6be-47cd-9787-fbf74bb9f157"" PreviousContainerIndex=""0"" />
+		<LayoutAnchorable ContentId=""analyzerPane"" PreviousContainerId=""8858bc50-019a-480e-b402-30a890e7c68f"" PreviousContainerIndex=""0"" />
+	</Hidden>
+</LayoutRoot>
+";
+
 		private string rawSettings;
 
 		public bool Valid => rawSettings != null;
+
+		public void Reset()
+		{
+			this.rawSettings = DefaultLayout;
+		}
 
 		public DockLayoutSettings(XElement element)
 		{
@@ -50,10 +87,18 @@ namespace ICSharpCode.ILSpy.Docking
 		public void Deserialize(XmlLayoutSerializer serializer)
 		{
 			if (!Valid)
-				rawSettings = "<LayoutRoot />";
+				rawSettings = DefaultLayout;
+			try {
+				Deserialize(rawSettings);
+			} catch (Exception) {
+				Deserialize(DefaultLayout);
+			}
 
-			using (StringReader reader = new StringReader(rawSettings)) {
-				serializer.Deserialize(reader);
+			void Deserialize(string settings)
+			{
+				using (StringReader reader = new StringReader(settings)) {
+					serializer.Deserialize(reader);
+				}
 			}
 		}
 

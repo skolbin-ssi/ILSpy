@@ -17,14 +17,19 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.ComponentModel.Composition;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.ViewModels;
+using Xceed.Wpf.AvalonDock.Layout;
+using Xceed.Wpf.AvalonDock.Layout.Serialization;
 
 namespace ICSharpCode.ILSpy.Docking
 {
@@ -42,12 +47,29 @@ namespace ICSharpCode.ILSpy.Docking
 
 		public PaneCollection<DocumentModel> Documents { get; } = new PaneCollection<DocumentModel>();
 
-		public PaneCollection<ToolPaneModel> ToolPanes { get; } = new PaneCollection<ToolPaneModel>();
+		private ToolPaneModel[] toolPanes;
+		public IEnumerable<ToolPaneModel> ToolPanes {
+			get {
+				if (toolPanes == null) {
+					toolPanes = new ToolPaneModel[] {
+						AssemblyListPaneModel.Instance,
+						SearchPaneModel.Instance,
+						AnalyzerPaneModel.Instance,
+#if DEBUG
+						DebugStepsPaneModel.Instance,
+#endif
+					};
+				}
+				return toolPanes;
+			}
+		}
 
 		public void Remove(PaneModel model)
 		{
-			Documents.Remove(model as DocumentModel);
-			ToolPanes.Remove(model as ToolPaneModel);
+			if (model is DocumentModel document)
+				Documents.Remove(document);
+			if (model is ToolPaneModel tool)
+				tool.IsVisible = false;
 		}
 
 		private DocumentModel _activeDocument = null;
@@ -64,6 +86,51 @@ namespace ICSharpCode.ILSpy.Docking
 					}
 					RaisePropertyChanged(nameof(ActiveDocument));
 				}
+			}
+		}
+
+		public void InitializeLayout(Xceed.Wpf.AvalonDock.DockingManager manager)
+		{
+			XmlLayoutSerializer serializer = new XmlLayoutSerializer(manager);
+			serializer.LayoutSerializationCallback += LayoutSerializationCallback;
+			try {
+				sessionSettings.DockLayout.Deserialize(serializer);
+			} finally {
+				serializer.LayoutSerializationCallback -= LayoutSerializationCallback;
+			}
+		}
+
+		void LayoutSerializationCallback(object sender, LayoutSerializationCallbackEventArgs e)
+		{
+			switch (e.Model) {
+				case LayoutAnchorable la:
+					switch (la.ContentId) {
+						case AssemblyListPaneModel.PaneContentId:
+							e.Content = AssemblyListPaneModel.Instance;
+							break;
+						case SearchPaneModel.PaneContentId:
+							e.Content = SearchPaneModel.Instance;
+							break;
+						case AnalyzerPaneModel.PaneContentId:
+							e.Content = AnalyzerPaneModel.Instance;
+							break;
+#if DEBUG
+						case DebugStepsPaneModel.PaneContentId:
+							e.Content = DebugStepsPaneModel.Instance;
+							break;
+#endif
+						default:
+							e.Cancel = true;
+							break;
+					}
+					if (!e.Cancel) {
+						e.Cancel = ((ToolPaneModel)e.Content).IsVisible;
+						((ToolPaneModel)e.Content).IsVisible = true;
+					}
+					break;
+				default:
+					e.Cancel = true;
+					break;
 			}
 		}
 
@@ -111,6 +178,23 @@ namespace ICSharpCode.ILSpy.Docking
 					ddm.LanguageVersion = sessionSettings.FilterSettings.LanguageVersion;
 				}
 			}
+		}
+
+		internal void CloseAllDocuments()
+		{
+			foreach (var doc in Documents.ToArray()) {
+				if (doc.IsCloseable)
+					Documents.Remove(doc);
+			}
+		}
+
+		internal void ResetLayout()
+		{
+			foreach (var pane in ToolPanes) {
+				pane.IsVisible = false;
+			}
+			sessionSettings.DockLayout.Reset();
+			InitializeLayout(MainWindow.Instance.DockManager);
 		}
 	}
 }

@@ -140,10 +140,10 @@
       <DependentUpon>DebugSteps.xaml</DependentUpon>
     </Compile>
     <Compile Include="Docking\ActiveDocumentConverter.cs" />
+    <Compile Include="Docking\CloseAllDocumentsCommand.cs" />
     <Compile Include="ViewModels\AssemblyListPaneModel.cs" />
     <Compile Include="Docking\DockLayoutSettings.cs" />
     <Compile Include="ViewModels\DocumentModel.cs" />
-    <Compile Include="Docking\LayoutUpdateStrategy.cs" />
     <Compile Include="Docking\PaneCollection.cs" />
     <Compile Include="ViewModels\PaneModel.cs" />
     <Compile Include="Docking\PaneStyleSelector.cs" />
