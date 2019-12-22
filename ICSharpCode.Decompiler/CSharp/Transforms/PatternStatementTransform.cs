@@ -165,6 +165,8 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 
 		public ForStatement TransformFor(ExpressionStatement node)
 		{
+			if (!context.Settings.ForStatement)
+				return null;
 			Match m1 = variableAssignPattern.Match(node);
 			if (!m1.Success) return null;
 			var variable = m1.Get<IdentifierExpression>("variable").Single().GetILVariable();
@@ -1032,6 +1034,29 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 					break;
 			}
 			return base.VisitBinaryOperatorExpression(expr);
+		}
+		#endregion
+
+		#region C# 7.3 pattern based fixed
+		static readonly Expression addressOfPinnableReference = new UnaryOperatorExpression {
+			Operator = UnaryOperatorType.AddressOf,
+			Expression = new InvocationExpression {
+				Target = new MemberReferenceExpression(new AnyNode("target"), "GetPinnableReference"),
+				Arguments = { }
+			}
+		};
+
+		public override AstNode VisitFixedStatement(FixedStatement fixedStatement)
+		{
+			if (context.Settings.PatternBasedFixedStatement) {
+				foreach (var v in fixedStatement.Variables) {
+					var m = addressOfPinnableReference.Match(v.Initializer);
+					if (m.Success) {
+						v.Initializer = m.Get<Expression>("target").Single().Detach();
+					}
+				}
+			}
+			return base.VisitFixedStatement(fixedStatement);
 		}
 		#endregion
 	}

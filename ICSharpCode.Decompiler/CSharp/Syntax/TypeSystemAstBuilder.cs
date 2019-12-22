@@ -1044,9 +1044,14 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 				if (isDouble)
 					mathType = compilation.FindType(typeof(Math));
 				else {
-					mathType = compilation.FindType(new TopLevelTypeName("System", "MathF")).GetDefinition();
-					if (mathType == null || !mathType.GetFields(f => f.Name == "PI" && f.IsConst).Any() || !mathType.GetFields(f => f.Name == "E" && f.IsConst).Any())
+					mathType = compilation.FindType(new TopLevelTypeName("System", "MathF"));
+					var typeDef = mathType.GetDefinition();
+					if (typeDef == null
+						|| !typeDef.IsDirectImportOf(compilation.MainModule)
+						|| !typeDef.GetFields(f => f.Name == "PI" && f.IsConst).Any() || !typeDef.GetFields(f => f.Name == "E" && f.IsConst).Any())
+					{
 						mathType = compilation.FindType(typeof(Math));
+					}
 				}
 
 				expr = TryExtractExpression(mathType, type, constantValue, "PI", isDouble)
@@ -1802,7 +1807,7 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		#endregion
 		
 		#region Convert Type Parameter
-		TypeParameterDeclaration ConvertTypeParameter(ITypeParameter tp)
+		internal TypeParameterDeclaration ConvertTypeParameter(ITypeParameter tp)
 		{
 			TypeParameterDeclaration decl = new TypeParameterDeclaration();
 			decl.Variance = tp.Variance;
@@ -1812,7 +1817,7 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			return decl;
 		}
 		
-		Constraint ConvertTypeParameterConstraint(ITypeParameter tp)
+		internal Constraint ConvertTypeParameterConstraint(ITypeParameter tp)
 		{
 			if (!tp.HasDefaultConstructorConstraint && !tp.HasReferenceTypeConstraint && !tp.HasValueTypeConstraint && tp.NullabilityConstraint != Nullability.NotNullable && tp.DirectBaseTypes.All(IsObjectOrValueType)) {
 				return null;

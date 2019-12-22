@@ -819,8 +819,13 @@ namespace ICSharpCode.Decompiler.CSharp
 			var fixedStmt = new FixedStatement();
 			fixedStmt.Type = exprBuilder.ConvertType(inst.Variable.Type);
 			Expression initExpr;
-			if (inst.Init.OpCode == OpCode.ArrayToPointer) {
-				initExpr = exprBuilder.Translate(((ArrayToPointer)inst.Init).Array);
+			if (inst.Init is GetPinnableReference gpr) {
+				if (gpr.Method != null) {
+					IType expectedType = gpr.Method.IsStatic ? gpr.Method.Parameters[0].Type : gpr.Method.DeclaringType;
+					initExpr = exprBuilder.Translate(gpr.Argument, typeHint: expectedType).ConvertTo(expectedType, exprBuilder);
+				} else {
+					initExpr = exprBuilder.Translate(gpr.Argument);
+				}
 			} else {
 				initExpr = exprBuilder.Translate(inst.Init, typeHint: inst.Variable.Type).ConvertTo(inst.Variable.Type, exprBuilder);
 			}
@@ -987,8 +992,21 @@ namespace ICSharpCode.Decompiler.CSharp
 				stmt.Parameters.AddRange(exprBuilder.MakeParameters(function.Parameters, function));
 				stmt.ReturnType = exprBuilder.ConvertType(function.Method.ReturnType);
 				stmt.Body = nestedBuilder.ConvertAsBlock(function.Body);
+				if (function.Method.TypeParameters.Count > 0) {
+					var astBuilder = exprBuilder.astBuilder;
+					if (astBuilder.ShowTypeParameters) {
+						int skipCount = function.ReducedMethod.NumberOfCompilerGeneratedTypeParameters;
+						stmt.TypeParameters.AddRange(function.Method.TypeParameters.Skip(skipCount).Select(t => astBuilder.ConvertTypeParameter(t)));
+						if (astBuilder.ShowTypeParameterConstraints) {
+							stmt.Constraints.AddRange(function.Method.TypeParameters.Skip(skipCount).Select(t => astBuilder.ConvertTypeParameterConstraint(t)).Where(c => c != null));
+						}
+					}
+				}
 				if (function.IsAsync) {
 					stmt.Modifiers |= Modifiers.Async;
+				}
+				if (settings.StaticLocalFunctions && function.ReducedMethod.IsStaticLocalFunction) {
+					stmt.Modifiers |= Modifiers.Static;
 				}
 				stmt.AddAnnotation(new MemberResolveResult(null, function.ReducedMethod));
 				return stmt;

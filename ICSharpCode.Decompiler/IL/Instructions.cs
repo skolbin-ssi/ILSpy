@@ -184,9 +184,12 @@ namespace ICSharpCode.Decompiler.IL
 		LdLen,
 		/// <summary>Load address of array element.</summary>
 		LdElema,
-		/// <summary>Converts an array pointer (O) to a reference to the first element, or to a null reference if the array is null or empty.
-		/// Also used to convert a string to a reference to the first character.</summary>
-		ArrayToPointer,
+		/// <summary>Retrieves a pinnable reference for the input object.
+		/// The input must be an object reference (O).
+		/// If the input is an array/string, evaluates to a reference to the first element/character, or to a null reference if the array is null or empty.
+		/// Otherwise, uses the GetPinnableReference method to get the reference, or evaluates to a null reference if the input is null.
+		/// </summary>
+		GetPinnableReference,
 		/// <summary>Maps a string value to an integer. This is used in switch(string).</summary>
 		StringToInt,
 		/// <summary>ILAst representation of Expression.Convert.</summary>
@@ -3018,8 +3021,10 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			WriteILRange(output, options);
 			output.Write(OpCode);
-			output.Write(' ');
-			method.WriteTo(output);
+			if (method != null) {
+				output.Write(' ');
+				method.WriteTo(output);
+			}
 		}
 		public override void AcceptVisitor(ILVisitor visitor)
 		{
@@ -3036,7 +3041,7 @@ namespace ICSharpCode.Decompiler.IL
 		protected internal override bool PerformMatch(ILInstruction other, ref Patterns.Match match)
 		{
 			var o = other as LdFtn;
-			return o != null && method.Equals(o.method);
+			return o != null && object.Equals(method, o.method);
 		}
 	}
 }
@@ -3066,8 +3071,10 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			WriteILRange(output, options);
 			output.Write(OpCode);
-			output.Write(' ');
-			method.WriteTo(output);
+			if (method != null) {
+				output.Write(' ');
+				method.WriteTo(output);
+			}
 			output.Write('(');
 			Argument.WriteTo(output, options);
 			output.Write(')');
@@ -3087,7 +3094,7 @@ namespace ICSharpCode.Decompiler.IL
 		protected internal override bool PerformMatch(ILInstruction other, ref Patterns.Match match)
 		{
 			var o = other as LdVirtFtn;
-			return o != null && this.Argument.PerformMatch(o.Argument, ref match) && method.Equals(o.method);
+			return o != null && this.Argument.PerformMatch(o.Argument, ref match) && object.Equals(method, o.method);
 		}
 	}
 }
@@ -3126,8 +3133,10 @@ namespace ICSharpCode.Decompiler.IL
 			output.Write(OpCode);
 			output.Write(' ');
 			type.WriteTo(output);
-			output.Write(' ');
-			method.WriteTo(output);
+			if (method != null) {
+				output.Write(' ');
+				method.WriteTo(output);
+			}
 			output.Write('(');
 			Argument.WriteTo(output, options);
 			output.Write(')');
@@ -3147,7 +3156,7 @@ namespace ICSharpCode.Decompiler.IL
 		protected internal override bool PerformMatch(ILInstruction other, ref Patterns.Match match)
 		{
 			var o = other as LdVirtDelegate;
-			return o != null && this.Argument.PerformMatch(o.Argument, ref match) && type.Equals(o.type) && method.Equals(o.method);
+			return o != null && this.Argument.PerformMatch(o.Argument, ref match) && type.Equals(o.type) && object.Equals(method, o.method);
 		}
 	}
 }
@@ -4756,21 +4765,25 @@ namespace ICSharpCode.Decompiler.IL
 }
 namespace ICSharpCode.Decompiler.IL
 {
-	/// <summary>Converts an array pointer (O) to a reference to the first element, or to a null reference if the array is null or empty.
-	/// Also used to convert a string to a reference to the first character.</summary>
-	public sealed partial class ArrayToPointer : ILInstruction
+	/// <summary>Retrieves a pinnable reference for the input object.
+	/// The input must be an object reference (O).
+	/// If the input is an array/string, evaluates to a reference to the first element/character, or to a null reference if the array is null or empty.
+	/// Otherwise, uses the GetPinnableReference method to get the reference, or evaluates to a null reference if the input is null.
+	/// </summary>
+	public sealed partial class GetPinnableReference : ILInstruction, IInstructionWithMethodOperand
 	{
-		public ArrayToPointer(ILInstruction array) : base(OpCode.ArrayToPointer)
+		public GetPinnableReference(ILInstruction argument, IMethod method) : base(OpCode.GetPinnableReference)
 		{
-			this.Array = array;
+			this.Argument = argument;
+			this.method = method;
 		}
-		public static readonly SlotInfo ArraySlot = new SlotInfo("Array", canInlineInto: true);
-		ILInstruction array;
-		public ILInstruction Array {
-			get { return this.array; }
+		public static readonly SlotInfo ArgumentSlot = new SlotInfo("Argument", canInlineInto: true);
+		ILInstruction argument;
+		public ILInstruction Argument {
+			get { return this.argument; }
 			set {
 				ValidateChild(value);
-				SetChildInstruction(ref this.array, value, 0);
+				SetChildInstruction(ref this.argument, value, 0);
 			}
 		}
 		protected sealed override int GetChildCount()
@@ -4781,7 +4794,7 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			switch (index) {
 				case 0:
-					return this.array;
+					return this.argument;
 				default:
 					throw new IndexOutOfRangeException();
 			}
@@ -4790,7 +4803,7 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			switch (index) {
 				case 0:
-					this.Array = value;
+					this.Argument = value;
 					break;
 				default:
 					throw new IndexOutOfRangeException();
@@ -4800,21 +4813,24 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			switch (index) {
 				case 0:
-					return ArraySlot;
+					return ArgumentSlot;
 				default:
 					throw new IndexOutOfRangeException();
 			}
 		}
 		public sealed override ILInstruction Clone()
 		{
-			var clone = (ArrayToPointer)ShallowClone();
-			clone.Array = this.array.Clone();
+			var clone = (GetPinnableReference)ShallowClone();
+			clone.Argument = this.argument.Clone();
 			return clone;
 		}
 		public override StackType ResultType { get { return StackType.Ref; } }
+		readonly IMethod method;
+		/// <summary>Returns the method operand.</summary>
+		public IMethod Method { get { return method; } }
 		protected override InstructionFlags ComputeFlags()
 		{
-			return array.Flags;
+			return argument.Flags;
 		}
 		public override InstructionFlags DirectFlags {
 			get {
@@ -4825,31 +4841,35 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			WriteILRange(output, options);
 			output.Write(OpCode);
+			if (method != null) {
+				output.Write(' ');
+				method.WriteTo(output);
+			}
 			output.Write('(');
-			this.array.WriteTo(output, options);
+			this.argument.WriteTo(output, options);
 			output.Write(')');
 		}
 		public override void AcceptVisitor(ILVisitor visitor)
 		{
-			visitor.VisitArrayToPointer(this);
+			visitor.VisitGetPinnableReference(this);
 		}
 		public override T AcceptVisitor<T>(ILVisitor<T> visitor)
 		{
-			return visitor.VisitArrayToPointer(this);
+			return visitor.VisitGetPinnableReference(this);
 		}
 		public override T AcceptVisitor<C, T>(ILVisitor<C, T> visitor, C context)
 		{
-			return visitor.VisitArrayToPointer(this, context);
+			return visitor.VisitGetPinnableReference(this, context);
 		}
 		protected internal override bool PerformMatch(ILInstruction other, ref Patterns.Match match)
 		{
-			var o = other as ArrayToPointer;
-			return o != null && this.array.PerformMatch(o.array, ref match);
+			var o = other as GetPinnableReference;
+			return o != null && this.argument.PerformMatch(o.argument, ref match) && object.Equals(method, o.method);
 		}
 		internal override void CheckInvariant(ILPhase phase)
 		{
 			base.CheckInvariant(phase);
-			Debug.Assert(array.ResultType == StackType.O);
+			Debug.Assert(argument.ResultType == StackType.O);
 		}
 	}
 }
@@ -5062,8 +5082,10 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			WriteILRange(output, options);
 			output.Write(OpCode);
-			output.Write(' ');
-			method.WriteTo(output);
+			if (method != null) {
+				output.Write(' ');
+				method.WriteTo(output);
+			}
 			output.Write('(');
 			this.left.WriteTo(output, options);
 			output.Write(", ");
@@ -5085,7 +5107,7 @@ namespace ICSharpCode.Decompiler.IL
 		protected internal override bool PerformMatch(ILInstruction other, ref Patterns.Match match)
 		{
 			var o = other as UserDefinedLogicOperator;
-			return o != null && method.Equals(o.method) && this.left.PerformMatch(o.left, ref match) && this.right.PerformMatch(o.right, ref match);
+			return o != null && object.Equals(method, o.method) && this.left.PerformMatch(o.left, ref match) && this.right.PerformMatch(o.right, ref match);
 		}
 	}
 }
@@ -6717,7 +6739,7 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			Default(inst);
 		}
-		protected internal virtual void VisitArrayToPointer(ArrayToPointer inst)
+		protected internal virtual void VisitGetPinnableReference(GetPinnableReference inst)
 		{
 			Default(inst);
 		}
@@ -7103,7 +7125,7 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			return Default(inst);
 		}
-		protected internal virtual T VisitArrayToPointer(ArrayToPointer inst)
+		protected internal virtual T VisitGetPinnableReference(GetPinnableReference inst)
 		{
 			return Default(inst);
 		}
@@ -7489,7 +7511,7 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			return Default(inst, context);
 		}
-		protected internal virtual T VisitArrayToPointer(ArrayToPointer inst, C context)
+		protected internal virtual T VisitGetPinnableReference(GetPinnableReference inst, C context)
 		{
 			return Default(inst, context);
 		}
@@ -7651,7 +7673,7 @@ namespace ICSharpCode.Decompiler.IL
 			"sizeof",
 			"ldlen",
 			"ldelema",
-			"array.to.pointer",
+			"get.pinnable.reference",
 			"string.to.int",
 			"expression.tree.cast",
 			"user.logic.operator",
@@ -8202,14 +8224,16 @@ namespace ICSharpCode.Decompiler.IL
 			array = default(ILInstruction);
 			return false;
 		}
-		public bool MatchArrayToPointer(out ILInstruction array)
+		public bool MatchGetPinnableReference(out ILInstruction argument, out IMethod method)
 		{
-			var inst = this as ArrayToPointer;
+			var inst = this as GetPinnableReference;
 			if (inst != null) {
-				array = inst.Array;
+				argument = inst.Argument;
+				method = inst.Method;
 				return true;
 			}
-			array = default(ILInstruction);
+			argument = default(ILInstruction);
+			method = default(IMethod);
 			return false;
 		}
 		public bool MatchUserDefinedLogicOperator(out IMethod method, out ILInstruction left, out ILInstruction right)
