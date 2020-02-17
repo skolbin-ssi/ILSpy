@@ -784,11 +784,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 					constantValue = CSharpPrimitiveCast.Cast(TypeCode.Int32, constantValue, false);
 					literalType = type.GetDefinition().Compilation.FindType(KnownTypeCode.Int32);
 				}
-				string literalValue = null;
+				LiteralFormat format = LiteralFormat.None;
 				if (PrintIntegralValuesAsHex) {
-					literalValue = $"0x{constantValue:X}";
+					format = LiteralFormat.HexadecimalNumber;
 				}
-				expr = new PrimitiveExpression(constantValue, literalValue);
+				expr = new PrimitiveExpression(constantValue, format);
 				if (AddResolveResultAnnotations)
 					expr.AddAnnotation(new ConstantResolveResult(literalType, constantValue));
 				if (smallInteger && !type.Equals(expectedType)) {
