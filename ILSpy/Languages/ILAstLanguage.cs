@@ -121,7 +121,6 @@ namespace ICSharpCode.ILSpy
 				reader.UseDebugSymbols = options.DecompilerSettings.UseDebugSymbols;
 				var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
 				ILFunction il = reader.ReadIL((SRM.MethodDefinitionHandle)method.MetadataToken, methodBody, kind: ILFunctionKind.TopLevelFunction, cancellationToken: options.CancellationToken);
-				var namespaces = new HashSet<string>();
 				var decompiler = new CSharpDecompiler(typeSystem, options.DecompilerSettings) { CancellationToken = options.CancellationToken };
 				ILTransformContext context = decompiler.CreateILTransformContext(il);
 				context.Stepper.StepLimit = options.StepLimit;
@@ -141,7 +140,7 @@ namespace ICSharpCode.ILSpy
 					}
 				}
 				(output as ISmartTextOutput)?.AddButton(Images.ViewCode, "Show Steps", delegate {
-					DebugStepsPaneModel.Instance.Show();
+					Docking.DockWorkspace.Instance.ShowToolPane(DebugStepsPaneModel.PaneContentId);
 				});
 				output.WriteLine();
 				il.WriteTo(output, DebugSteps.Options);
