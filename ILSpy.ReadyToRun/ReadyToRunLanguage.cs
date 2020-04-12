@@ -17,8 +17,10 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
+using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
@@ -73,17 +75,16 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 					Debug.Assert(reader.Machine == Machine.I386);
 					bitness = 32;
 				}
-				foreach (ReadyToRunMethod readyToRunMethod in reader.Methods) {
-					if (readyToRunMethod.MethodHandle == method.MetadataToken) {
-						// TODO: Indexing
+				if (cacheEntry.methodMap == null) {
+					cacheEntry.methodMap = reader.Methods.Values
+						.SelectMany(m => m)
+						.GroupBy(m => m.MethodHandle)
+						.ToDictionary(g => g.Key, g => g.ToArray());
+				}
+				if (cacheEntry.methodMap.TryGetValue(method.MetadataToken, out var methods)) {
+					foreach (var readyToRunMethod in methods) {
 						foreach (RuntimeFunction runtimeFunction in readyToRunMethod.RuntimeFunctions) {
-							WriteCommentLine(output, readyToRunMethod.SignatureString);
-							byte[] code = new byte[runtimeFunction.Size];
-							for (int i = 0; i < runtimeFunction.Size; i++) {
-								code[i] = reader.Image[reader.GetOffset(runtimeFunction.StartAddress) + i];
-							}
-							Disassemble(output, code, bitness, (ulong)runtimeFunction.StartAddress);
-							output.WriteLine();
+							Disassemble(output, reader, readyToRunMethod, runtimeFunction, bitness, (ulong)runtimeFunction.StartAddress);
 						}
 					}
 				}
@@ -95,8 +96,14 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 			output.WriteLine("; " + comment);
 		}
 
-		private void Disassemble(ITextOutput output, byte[] codeBytes, int bitness, ulong address)
+		private void Disassemble(ITextOutput output, ReadyToRunReader reader, ReadyToRunMethod readyToRunMethod, RuntimeFunction runtimeFunction, int bitness, ulong address)
 		{
+			WriteCommentLine(output, readyToRunMethod.SignatureString);
+			byte[] codeBytes = new byte[runtimeFunction.Size];
+			for (int i = 0; i < runtimeFunction.Size; i++) {
+				codeBytes[i] = reader.Image[reader.GetOffset(runtimeFunction.StartAddress) + i];
+			}
+
 			// TODO: Decorate the disassembly with Unwind, GC and debug info
 			var codeReader = new ByteArrayCodeReader(codeBytes);
 			var decoder = Decoder.Create(bitness, codeReader);
@@ -120,11 +127,11 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 			formatter.Options.FirstOperandCharIndex = 10;
 			var tempOutput = new StringBuilderFormatterOutput();
 			foreach (var instr in instructions) {
+				int byteBaseIndex = (int)(instr.IP - address);
 				formatter.Format(instr, tempOutput);
 				output.Write(instr.IP.ToString("X16"));
 				output.Write(" ");
 				int instrLen = instr.ByteLength;
-				int byteBaseIndex = (int)(instr.IP - address);
 				for (int i = 0; i < instrLen; i++)
 					output.Write(codeBytes[byteBaseIndex + i].ToString("X2"));
 				int missingBytes = 10 - instrLen;
@@ -133,6 +140,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 				output.Write(" ");
 				output.WriteLine(tempOutput.ToStringAndReset());
 			}
+			output.WriteLine();
 		}
 
 		private ReadyToRunReaderCacheEntry GetReader(LoadedAssembly assembly, PEFile module)
@@ -142,7 +150,6 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 				if (!readyToRunReaders.TryGetValue(module, out result)) {
 					result = new ReadyToRunReaderCacheEntry();
 					try {
-						// TODO: avoid eager parsing 
 						result.readyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), module.Metadata, module.Reader, module.FileName);
 						if (result.readyToRunReader.Machine != Machine.Amd64 && result.readyToRunReader.Machine != Machine.I386) {
 							result.failureReason = $"Architecture {result.readyToRunReader.Machine} is not currently supported.";
@@ -188,6 +195,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 		{
 			public ReadyToRunReader readyToRunReader;
 			public string failureReason;
+			public Dictionary<EntityHandle, ReadyToRunMethod[]> methodMap;
 		}
 	}
 }
