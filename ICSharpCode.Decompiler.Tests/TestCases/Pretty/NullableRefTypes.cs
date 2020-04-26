@@ -19,6 +19,18 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		private string[]?[] field_array;
 		private Dictionary<(string, string?), (int, string[]?, string?[])> field_complex;
 
+		public (string A, dynamic? B) PropertyNamedTuple {
+			get {
+				throw new NotImplementedException();
+			}
+		}
+
+		public (string A, dynamic? B) this[(dynamic? C, string D) weirdIndexer] {
+			get {
+				throw new NotImplementedException();
+			}
+		}
+
 		public int GetLength1(string[] arr)
 		{
 			return field_string.Length + arr.Length;
@@ -67,6 +79,14 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			set;
 		}
 		public event EventHandler? Event;
+
+		public static int? NullConditionalOperator(T02_EverythingIsNullableInHere? x)
+		{
+			// This code throws if `x != null && x.field1 == null`.
+			// But we can't decompile it to the warning-free "x?.field1!.Length",
+			// because of https://github.com/dotnet/roslyn/issues/43659
+			return x?.field1.Length;
+		}
 	}
 
 	public class T03_EverythingIsNotNullableInHere

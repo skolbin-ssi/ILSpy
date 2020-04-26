@@ -426,7 +426,7 @@
   <data name="Create" xml:space="preserve">
     <value>Create</value>
   </data>
-  <data name="List" xml:space="preserve">
+  <data name="NewList" xml:space="preserve">
     <value>New list</value>
   </data>
   <data name="SelectAssembliesOpen" xml:space="preserve">
@@ -831,5 +831,37 @@ Are you sure you want to continue?</value>
   </data>
   <data name="HideEmptyMetadataTables" xml:space="preserve">
     <value>Hide empty metadata tables from tree view</value>
+  </data>
+  <data name="NavigationFailed" xml:space="preserve">
+    <value>Navigation failed because the target is hidden or a compiler-generated class.\n
+Please disable all filters that might hide the item (i.e. activate "View &gt; Show internal types and members") and try again.</value>
+  </data>
+  <data name="AddShellIntegration" xml:space="preserve">
+    <value>Add shell integration</value>
+  </data>
+  <data name="AddShellIntegrationMessage" xml:space="preserve">
+    <value>This will add "{0}" to the registry at "HKCU\Software\Classes\dllfile\shell\Open with ILSpy\command" and "HKCU\Software\Classes\exefile\shell\Open with ILSpy\command" to allow opening .dll and .exe files from the Windows Explorer context menu.
+
+Do you want to continue?</value>
+  </data>
+  <data name="RemoveShellIntegration" xml:space="preserve">
+    <value>Remove shell integration</value>
+  </data>
+  <data name="RemoveShellIntegrationMessage" xml:space="preserve">
+    <value>This will remove "{0}" from the registry at "HKCU\Software\Classes\dllfile\shell\Open with ILSpy\command" and "HKCU\Software\Classes\exefile\shell\Open with ILSpy\command".
+
+Do you want to continue?</value>
+  </data>
+  <data name="AddPreconfiguredList" xml:space="preserve">
+    <value>Add preconfigured list...</value>
+  </data>
+  <data name="R_ename" xml:space="preserve">
+    <value>R_ename</value>
+  </data>
+  <data name="RenameList" xml:space="preserve">
+    <value>Rename list</value>
+  </data>
+  <data name="CultureLabel" xml:space="preserve">
+    <value>Culture</value>
   </data>
 </root>

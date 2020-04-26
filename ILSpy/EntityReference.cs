@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2011 AlphaSierraPapa for the SharpDevelop Team
+﻿// Copyright (c) 2018 Siegfried Pammer
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -16,30 +16,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using ICSharpCode.ILSpy.ViewModels;
+using System;
+using System.Diagnostics;
+using System.Reflection.Metadata;
+using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy
 {
-	/// <summary>
-	/// Interaction logic for ManageAssemblyListsDialog.xaml
-	/// </summary>
-	public partial class ManageAssemblyListsDialog : Window
+	[DebuggerDisplay("EntityReference Module={Module}, Handle={Handle}, Protocol={Protocol}")]
+	public class EntityReference
 	{
-		public ManageAssemblyListsDialog()
+		public PEFile Module { get; }
+		public Handle Handle { get; }
+		public string Protocol { get; }
+
+		public EntityReference(PEFile module, Handle handle)
 		{
-			InitializeComponent();
-			DataContext = new ManageAssemblyListsViewModel(this);
+			this.Module = module ?? throw new ArgumentNullException(nameof(module));
+			this.Handle = handle;
 		}
 
-		private void PreconfiguredAssemblyListsMenuClick(object sender, RoutedEventArgs e)
+		public EntityReference(string protocol, PEFile module, Handle handle)
+			: this(module, handle)
 		{
-			var menu = (ContextMenu)Resources["PreconfiguredAssemblyListsMenu"];
-			menu.PlacementTarget = (Button)sender;
-			menu.Placement = PlacementMode.Bottom;
-			menu.IsOpen = true;
+			this.Protocol = protocol ?? "decompile";
 		}
 	}
 }
