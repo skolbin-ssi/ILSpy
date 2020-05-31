@@ -867,4 +867,7 @@ Do you want to continue?</value>
   <data name="CultureLabel" xml:space="preserve">
     <value>Culture</value>
   </data>
+  <data name="NewTab" xml:space="preserve">
+    <value>New Tab</value>
+  </data>
 </root>
