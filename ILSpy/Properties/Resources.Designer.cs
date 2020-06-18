@@ -577,6 +577,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Aggressively perform Scalar Replacement Of Aggregates (SROA).
+        /// </summary>
+        public static string DecompilerSettings_AggressiveScalarReplacementOfAggregates {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.AggressiveScalarReplacementOfAggregates", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Allow extension &apos;Add&apos; methods in collection initializer expressions.
         /// </summary>
         public static string DecompilerSettings_AllowExtensionAddMethodsInCollectionInitializerExpressions {
@@ -1106,6 +1115,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_UsePatternBasedFixedStatement {
             get {
                 return ResourceManager.GetString("DecompilerSettings.UsePatternBasedFixedStatement", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use new SDK style format for generated project files (*.csproj).
+        /// </summary>
+        public static string DecompilerSettings_UseSdkStyleProjectFormat {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UseSdkStyleProjectFormat", resourceCulture);
             }
         }
         
@@ -1842,7 +1860,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Search MSDN....
+        ///   Looks up a localized string similar to Search Microsoft Docs....
         /// </summary>
         public static string SearchMSDN {
             get {
