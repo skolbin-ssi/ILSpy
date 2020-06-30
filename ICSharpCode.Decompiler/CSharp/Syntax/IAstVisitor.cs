@@ -137,14 +137,12 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		void VisitMemberType(MemberType memberType);
 		void VisitTupleType(TupleAstType tupleType);
 		void VisitTupleTypeElement(TupleTypeElement tupleTypeElement);
+		void VisitFunctionPointerType(FunctionPointerType functionPointerType);
 		void VisitComposedType(ComposedType composedType);
 		void VisitArraySpecifier(ArraySpecifier arraySpecifier);
 		void VisitPrimitiveType(PrimitiveType primitiveType);
 		
 		void VisitComment(Comment comment);
-		void VisitNewLine(NewLineNode newLineNode);
-		void VisitWhitespace(WhitespaceNode whitespaceNode);
-		void VisitText(TextNode textNode);
 		void VisitPreProcessorDirective(PreProcessorDirective preProcessorDirective);
 		void VisitDocumentationReference(DocumentationReference documentationReference);
 		
@@ -279,14 +277,12 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		S VisitMemberType(MemberType memberType);
 		S VisitTupleType(TupleAstType tupleType);
 		S VisitTupleTypeElement(TupleTypeElement tupleTypeElement);
+		S VisitFunctionPointerType(FunctionPointerType functionPointerType);
 		S VisitComposedType(ComposedType composedType);
 		S VisitArraySpecifier(ArraySpecifier arraySpecifier);
 		S VisitPrimitiveType(PrimitiveType primitiveType);
 		
 		S VisitComment(Comment comment);
-		S VisitWhitespace(WhitespaceNode whitespaceNode);
-		S VisitText(TextNode textNode);
-		S VisitNewLine(NewLineNode newLineNode);
 		S VisitPreProcessorDirective(PreProcessorDirective preProcessorDirective);
 		S VisitDocumentationReference(DocumentationReference documentationReference);
 		
@@ -421,14 +417,12 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		S VisitMemberType(MemberType memberType, T data);
 		S VisitTupleType(TupleAstType tupleType, T data);
 		S VisitTupleTypeElement(TupleTypeElement tupleTypeElement, T data);
+		S VisitFunctionPointerType(FunctionPointerType functionPointerType, T data);
 		S VisitComposedType(ComposedType composedType, T data);
 		S VisitArraySpecifier(ArraySpecifier arraySpecifier, T data);
 		S VisitPrimitiveType(PrimitiveType primitiveType, T data);
 		
 		S VisitComment(Comment comment, T data);
-		S VisitNewLine(NewLineNode newLineNode, T data);
-		S VisitWhitespace(WhitespaceNode whitespaceNode, T data);
-		S VisitText(TextNode textNode, T data);
 		S VisitPreProcessorDirective(PreProcessorDirective preProcessorDirective, T data);
 		S VisitDocumentationReference(DocumentationReference documentationReference, T data);
 		

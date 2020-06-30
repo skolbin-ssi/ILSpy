@@ -61,21 +61,6 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			VisitChildren(comment);
 		}
 
-		public virtual void VisitNewLine(NewLineNode newLineNode)
-		{
-			VisitChildren(newLineNode);
-		}
-
-		public virtual void VisitWhitespace(WhitespaceNode whitespaceNode)
-		{
-			VisitChildren(whitespaceNode);
-		}
-
-		public virtual void VisitText(TextNode textNode)
-		{
-			VisitChildren(textNode);
-		}
-
 		public virtual void VisitDocumentationReference (DocumentationReference documentationReference)
 		{
 			VisitChildren (documentationReference);
@@ -124,6 +109,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual void VisitTupleTypeElement(TupleTypeElement tupleTypeElement)
 		{
 			VisitChildren (tupleTypeElement);
+		}
+
+		public virtual void VisitFunctionPointerType(FunctionPointerType functionPointerType)
+		{
+			VisitChildren(functionPointerType);
 		}
 
 		public virtual void VisitAttribute (Attribute attribute)
@@ -713,21 +703,6 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			return VisitChildren (comment);
 		}
 		
-		public virtual T VisitNewLine(NewLineNode newLineNode)
-		{
-			return VisitChildren(newLineNode);
-		}
-		
-		public virtual T VisitWhitespace(WhitespaceNode whitespaceNode)
-		{
-			return VisitChildren(whitespaceNode);
-		}
-
-		public virtual T VisitText(TextNode textNode)
-		{
-			return VisitChildren(textNode);
-		}
-
 		public virtual T VisitDocumentationReference (DocumentationReference documentationReference)
 		{
 			return VisitChildren (documentationReference);
@@ -776,6 +751,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual T VisitTupleTypeElement(TupleTypeElement tupleTypeElement)
 		{
 			return VisitChildren (tupleTypeElement);
+		}
+
+		public virtual T VisitFunctionPointerType(FunctionPointerType functionPointerType)
+		{
+			return VisitChildren (functionPointerType);
 		}
 
 		public virtual T VisitAttribute (Attribute attribute)
@@ -1365,21 +1345,6 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			return VisitChildren (comment, data);
 		}
 		
-		public virtual S VisitNewLine(NewLineNode newLineNode, T data)
-		{
-			return VisitChildren(newLineNode, data);
-		}
-
-		public virtual S VisitWhitespace(WhitespaceNode whitespaceNode, T data)
-		{
-			return VisitChildren(whitespaceNode, data);
-		}
-
-		public virtual S VisitText(TextNode textNode, T data)
-		{
-			return VisitChildren(textNode, data);
-		}
-
 		public virtual S VisitDocumentationReference (DocumentationReference documentationReference, T data)
 		{
 			return VisitChildren (documentationReference, data);
@@ -1428,6 +1393,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual S VisitTupleTypeElement(TupleTypeElement tupleTypeElement, T data)
 		{
 			return VisitChildren (tupleTypeElement, data);
+		}
+
+		public virtual S VisitFunctionPointerType(FunctionPointerType functionPointerType, T data)
+		{
+			return VisitChildren (functionPointerType, data);
 		}
 
 		public virtual S VisitAttribute (Attribute attribute, T data)

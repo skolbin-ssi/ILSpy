@@ -33,13 +33,16 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 	/// </summary>
 	class SwitchOnStringTransform : IILTransform
 	{
+		ILTransformContext context;
+
 		public void Run(ILFunction function, ILTransformContext context)
 		{
 			if (!context.Settings.SwitchStatementOnString)
 				return;
 
+			this.context = context;
 			BlockContainer body = (BlockContainer)function.Body;
-			var hashtableInitializers = ScanHashtableInitializerBlocks(body.EntryPoint); 
+			var hashtableInitializers = ScanHashtableInitializerBlocks(body.EntryPoint);
 
 			HashSet<BlockContainer> changedContainers = new HashSet<BlockContainer>();
 
@@ -70,7 +73,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					}
 				}
 				if (!changed) continue;
-				SwitchDetection.SimplifySwitchInstruction(block);
+				SwitchDetection.SimplifySwitchInstruction(block, context);
 				if (block.Parent is BlockContainer container)
 					changedContainers.Add(container);
 			}
@@ -83,6 +86,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				if (!transformed) continue;
 				if (!omittedBlocks.TryGetValue(previous, out var actual))
 					actual = previous;
+				context.Step("Remove hashtable initializer", actual);
 				if (jumpToNext != null) {
 					actual.Instructions.SecondToLastOrDefault().ReplaceWith(jumpToNext);
 				}
@@ -95,6 +99,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			if (hashtableInitializers.Count > 0 && omittedBlocks.Count == hashtableInitializers.Count && body.EntryPoint.Instructions.Count == 2) {
 				if (body.EntryPoint.Instructions[0] is IfInstruction ifInst
 					&& ifInst.TrueInst.MatchBranch(out var beginOfMethod) && body.EntryPoint.Instructions[1].MatchBranch(beginOfMethod)) {
+					context.Step("Remove initial null check", body);
 					body.EntryPoint.Instructions.RemoveAt(0);
 				}
 			}
@@ -345,7 +350,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			var stringToInt = new StringToInt(switchValue, values.SelectArray(item => item.Item1));
 			var inst = new SwitchInstruction(stringToInt);
 			inst.Sections.AddRange(sections);
-			
+
 			inst.AddILRange(instructions[i - 1]);
 			instructions[i].ReplaceWith(inst);
 			instructions.RemoveAt(i + 1);
@@ -828,9 +833,9 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			InstructionCollection<ILInstruction> switchBlockInstructions = instructions;
 			int switchBlockInstructionsOffset = i;
 			Block nullValueCaseBlock = null;
+			ILInstruction instForNullCheck = null;
 			if (instructions[i].MatchIfInstruction(out var condition, out var exitBlockJump)
-				&& condition.MatchCompEquals(out var left, out var right) && right.MatchLdNull())
-			{
+				&& condition.MatchCompEqualsNull(out instForNullCheck)) {
 				var nextBlockJump = instructions[i + 1] as Branch;
 				if (nextBlockJump == null || nextBlockJump.TargetBlock.IncomingEdgeCount != 1)
 					return false;
@@ -849,9 +854,14 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				MatchComputeStringHashCall(switchBlockInstructions[switchBlockInstructionsOffset], switchValueVar, out LdLoc switchValueLoad)))
 				return false;
 
+			if (instForNullCheck != null && !instForNullCheck.MatchLdLoc(switchValueLoad.Variable)) {
+				return false;
+			}
+
 			var stringValues = new List<(string Value, ILInstruction TargetBlockOrLeave)>();
 			SwitchSection defaultSection = switchInst.Sections.MaxBy(s => s.Labels.Count());
-			Block exitOrDefaultBlock = null;
+			if (!(defaultSection.Body.MatchBranch(out Block exitOrDefaultBlock) || defaultSection.Body.MatchLeave(out _)))
+				return false;
 			foreach (var section in switchInst.Sections) {
 				if (section == defaultSection) continue;
 				// extract target block
@@ -866,9 +876,8 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					return false;
 				}
 
-				if (exitOrDefaultBlock != null && exitOrDefaultBlock != currentExitBlock)
+				if (currentExitBlock != exitOrDefaultBlock)
 					return false;
-				exitOrDefaultBlock = currentExitBlock;
 				if (emptyStringEqualsNull && string.IsNullOrEmpty(stringValue)) {
 					stringValues.Add((null, targetOrLeave));
 					stringValues.Add((string.Empty, targetOrLeave));
@@ -880,7 +889,16 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			if (nullValueCaseBlock != null && exitOrDefaultBlock != nullValueCaseBlock) {
 				stringValues.Add((null, nullValueCaseBlock));
 			}
+			// In newer Roslyn versions (>=3.7) the null check appears in the default case, not prior to the switch.
+			if (!stringValues.Any(pair => pair.Value == null) && IsNullCheckInDefaultBlock(ref exitOrDefaultBlock, switchValueLoad.Variable, out nullValueCaseBlock)) {
+				stringValues.Add((null, nullValueCaseBlock));
+			}
 
+			context.Step(nameof(MatchRoslynSwitchOnString), switchValueLoad);
+			if (exitOrDefaultBlock != null) {
+				// change TargetBlock in case it was modified by IsNullCheckInDefaultBlock()
+				((Branch)defaultSection.Body).TargetBlock = exitOrDefaultBlock;
+			}
 			ILInstruction switchValueInst = switchValueLoad;
 			if (instructions == switchBlockInstructions) {
 				// stloc switchValueLoadVariable(switchValue)
@@ -947,6 +965,34 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				instructions[offset].ReplaceWith(newSwitch);
 				return newSwitch;
 			}
+		}
+
+		/// <summary>
+		/// Matches:
+		/// Block oldDefaultBlock (incoming: 1) {
+		///     if (comp.o(ldloc switchVar == ldnull)) br nullValueCaseBlock
+		///	    br newDefaultBlock
+		/// }
+		/// </summary>
+		private bool IsNullCheckInDefaultBlock(ref Block exitOrDefaultBlock, ILVariable switchVar, out Block nullValueCaseBlock)
+		{
+			nullValueCaseBlock = null;
+			if (exitOrDefaultBlock == null)
+				return false;
+			if (!exitOrDefaultBlock.Instructions[0].MatchIfInstruction(out var condition, out var thenBranch))
+				return false;
+			if (!(condition.MatchCompEqualsNull(out var arg) && arg.MatchLdLoc(switchVar)))
+				return false;
+			if (!thenBranch.MatchBranch(out nullValueCaseBlock))
+				return false;
+			if (nullValueCaseBlock.Parent != exitOrDefaultBlock.Parent)
+				return false;
+			if (!exitOrDefaultBlock.Instructions[1].MatchBranch(out var elseBlock))
+				return false;
+			if (elseBlock.Parent != exitOrDefaultBlock.Parent)
+				return false;
+			exitOrDefaultBlock = elseBlock;
+			return true;
 		}
 
 		/// <summary>
