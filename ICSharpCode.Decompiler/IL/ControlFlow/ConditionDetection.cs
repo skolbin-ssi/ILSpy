@@ -361,7 +361,7 @@ namespace ICSharpCode.Decompiler.IL.ControlFlow
 
 			//save a copy
 			var thenInst = ifInst.TrueInst;
-			
+
 			if (ifInst != block.Instructions.SecondToLastOrDefault()) {
 				// extract "else...; exit".
 				// Note that this will only extract instructions that were previously inlined from another block
