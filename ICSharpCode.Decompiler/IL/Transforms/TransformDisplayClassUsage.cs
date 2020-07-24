@@ -43,7 +43,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 	/// Note that 2) and 3) apply because declarations and uses of lambdas and local functions
 	/// are already transformed by the time this transform is applied.
 	/// </summary>
-	class TransformDisplayClassUsage : ILVisitor, IILTransform
+	public class TransformDisplayClassUsage : ILVisitor, IILTransform
 	{
 		class VariableToDeclare
 		{
@@ -399,8 +399,19 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				// IL_0000: ldarg.0
 				// IL_0001: call instance void [mscorlib]System.Object::.ctor()
 				// IL_0006: ret
-				if (DecodeOpCodeSkipNop(ref reader) != ILOpCode.Ldarg_0)
-					return false;
+				var opCode = DecodeOpCodeSkipNop(ref reader);
+				switch (opCode) {
+					case ILOpCode.Ldarg:
+					case ILOpCode.Ldarg_s:
+						if (reader.DecodeIndex(opCode) != 0)
+							return false;
+						break;
+					case ILOpCode.Ldarg_0:
+						// OK
+						break;
+					default:
+						return false;
+				}
 				if (DecodeOpCodeSkipNop(ref reader) != ILOpCode.Call)
 					return false;
 				var baseCtorHandle = MetadataTokenHelpers.EntityHandleOrNil(reader.ReadInt32());
