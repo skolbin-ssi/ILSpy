@@ -34,8 +34,10 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
 
+  <Import Project="..\packages.props" />
+
   <ItemGroup>
-    <PackageReference Include="NUnit" Version="3.12.0" />
+    <PackageReference Include="NUnit" Version="$(NUnitVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -52,6 +54,7 @@
     </Compile>
     <Compile Include="Cases\CustomControl.cs" />
     <Compile Include="Cases\Issue1547.xaml.cs" />
+    <Compile Include="Cases\Issue2097.xaml.cs" />
     <Compile Include="Cases\MyControl.xaml.cs">
       <DependentUpon>MyControl.xaml</DependentUpon>
     </Compile>
@@ -84,6 +87,9 @@
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Cases\Issue1547.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="Cases\Issue2097.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Include="Cases\Issue775.xaml">

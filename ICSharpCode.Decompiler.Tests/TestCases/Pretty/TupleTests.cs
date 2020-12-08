@@ -92,10 +92,14 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		public (int, int) AccessRest => (1, 2, 3, 4, 5, 6, 7, 8, 9).Rest;
 
 		public (string, object, Action) TargetTyping => (null, 1, delegate {
+#pragma warning disable format
 		});
+#pragma warning restore format
 
 		public object NotTargetTyping => ((string)null, (object)1, (Action)delegate {
+#pragma warning disable format
 		});
+#pragma warning restore format
 
 		public void UnnamedTupleOut(out (int, string, Action, dynamic) tuple)
 		{
@@ -129,7 +133,8 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 		public void UseDict()
 		{
-			if (TupleDict.Count > 10) {
+			if (TupleDict.Count > 10)
+			{
 				TupleDict.Clear();
 			}
 			// TODO: it would be nice if we could infer the name 'c' for the local
@@ -153,21 +158,24 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 		public void Foreach(IEnumerable<(int, string)> input)
 		{
-			foreach (var item in input) {
+			foreach (var item in input)
+			{
 				Console.WriteLine($"{item.Item1}: {item.Item2}");
 			}
 		}
 
 		public void ForeachNamedElements(IEnumerable<(int Index, string Data)> input)
 		{
-			foreach (var item in input) {
+			foreach (var item in input)
+			{
 				Console.WriteLine($"{item.Index}: {item.Data}");
 			}
 		}
 
 		public void NonGenericForeach(IEnumerable input)
 		{
-			foreach ((string, int) item in input) {
+			foreach ((string, int) item in input)
+			{
 				Console.WriteLine($"{item.Item1}: {item.Item2}");
 			}
 		}

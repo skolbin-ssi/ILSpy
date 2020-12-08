@@ -20,7 +20,7 @@
     <AssemblyOriginatorKeyFile>ICSharpCode.Decompiler.snk</AssemblyOriginatorKeyFile>
     <NoWarn>1701;1702;1591;1573</NoWarn>
   </PropertyGroup>
-  
+
   <!-- HACK: Disable package generation on Unix due to tooling issues. -->
   <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -46,11 +46,11 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <Import Project="..\packages.props" />
+
   <ItemGroup>
-    <PackageReference Include="Humanizer.Core" Version="2.2.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.ValueTuple" Version="4.3.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
+    <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -70,8 +70,17 @@
     <Compile Include="CSharp\SequencePointBuilder.cs" />
     <Compile Include="CSharp\ProjectDecompiler\TargetFramework.cs" />
     <Compile Include="CSharp\ProjectDecompiler\TargetServices.cs" />
-    <Compile Include="CSharp\Syntax\FunctionPointerType.cs" />
+    <Compile Include="CSharp\Syntax\Expressions\DeclarationExpression.cs" />
+    <Compile Include="CSharp\Syntax\Expressions\SwitchExpression.cs" />
+    <Compile Include="CSharp\Syntax\FunctionPointerAstType.cs" />
+    <Compile Include="CSharp\Syntax\VariableDesignation.cs" />
+    <Compile Include="Humanizer\Vocabularies.cs" />
+    <Compile Include="Humanizer\Vocabulary.cs" />
+    <Compile Include="IL\Transforms\DeconstructionTransform.cs" />
     <Compile Include="IL\Transforms\FixLoneIsInst.cs" />
+    <Compile Include="IL\Instructions\DeconstructInstruction.cs" />
+    <Compile Include="IL\Instructions\DeconstructResultInstruction.cs" />
+    <Compile Include="IL\Instructions\MatchInstruction.cs" />
     <Compile Include="IL\Transforms\IndexRangeTransform.cs" />
     <Compile Include="CSharp\TranslatedStatement.cs" />
     <Compile Include="DebugInfo\KnownGuids.cs" />
@@ -79,6 +88,8 @@
     <Compile Include="Documentation\XmlDocumentationElement.cs" />
     <Compile Include="IL\ControlFlow\AwaitInFinallyTransform.cs" />
     <Compile Include="IL\Transforms\IntroduceNativeIntTypeOnLocals.cs" />
+    <Compile Include="Semantics\OutVarResolveResult.cs" />
+    <Compile Include="SingleFileBundle.cs" />
     <Compile Include="Solution\ProjectId.cs" />
     <Compile Include="Solution\ProjectItem.cs" />
     <Compile Include="Solution\SolutionCreator.cs" />
@@ -242,6 +253,7 @@
     <Compile Include="CSharp\Resolver\OverloadResolutionErrors.cs" />
     <Compile Include="IL\Transforms\FixRemainingIncrements.cs" />
     <Compile Include="IL\Transforms\ILExtraction.cs" />
+    <Compile Include="TypeSystem\FunctionPointerType.cs" />
     <Compile Include="TypeSystem\Implementation\LocalFunctionMethod.cs" />
     <Compile Include="CSharp\Resolver\TypeInference.cs" />
     <Compile Include="CSharp\Transforms\CombineQueryExpressions.cs" />
@@ -403,6 +415,7 @@
     <Compile Include="TypeSystem\Implementation\NullabilityAnnotatedType.cs" />
     <Compile Include="TypeSystem\TupleType.cs" />
     <Compile Include="TypeSystem\TypeProvider.cs" />
+    <Compile Include="Util\FileUtility.cs" />
     <Compile Include="Util\GraphVizGraph.cs" />
     <Compile Include="Util\KeyComparer.cs" />
     <Compile Include="Util\LongDict.cs" />
@@ -601,6 +614,7 @@
     <Compile Include="Util\ReferenceComparer.cs" />
     <Compile Include="Util\TreeTraversal.cs" />
     <Compile Include="Util\UnionFind.cs" />
+    <Compile Include="Util\Win32Resources.cs" />
     <None Include="ICSharpCode.Decompiler.nuspec" DependentUpon="ICSharpCode.Decompiler.nuspec.template" />
     <None Include="ICSharpCode.Decompiler.nuspec.template" />
     <None Include="ICSharpCode.Decompiler.ruleset" />
@@ -617,15 +631,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\nrefactory\doc\XML Documentation.html">
-      <Link>Documentation\XML Documentation.html</Link>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="..\doc\Pattern Matching.html">
       <Link>CSharp\Syntax\PatternMatching\Pattern Matching.html</Link>
     </Content>
+    <Content Include="Humanizer\LICENSE" />
   </ItemGroup>
 
   <ItemGroup>
@@ -633,13 +642,25 @@
   </ItemGroup>
 
   <Target Name="ILSpyUpdateAssemblyInfo" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <UpdateAssemblyInfoStamp Include="obj\update-assemblyinfo-last-commit-hash.txt" />
+    </ItemGroup>
     <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
       <UpdateAssemblyInfo>powershell -NoProfile -ExecutionPolicy Bypass -File BuildTools/update-assemblyinfo.ps1 $(Configuration)</UpdateAssemblyInfo>
+      <GitRevParse>git rev-parse HEAD^^{commit}</GitRevParse>
     </PropertyGroup>
     <PropertyGroup Condition=" '$(OS)' != 'Windows_NT' ">
       <UpdateAssemblyInfo>pwsh -NoProfile -ExecutionPolicy Bypass -File BuildTools/update-assemblyinfo.ps1 $(Configuration)</UpdateAssemblyInfo>
+      <GitRevParse>git rev-parse HEAD^{commit}</GitRevParse>
     </PropertyGroup>
-    <Exec WorkingDirectory=".." Command="$(UpdateAssemblyInfo)" Timeout="60000" />
+    <ReadLinesFromFile ContinueOnError="true" File="@(UpdateAssemblyInfoStamp)">
+      <Output TaskParameter="Lines" PropertyName="LastCommitHash" />
+    </ReadLinesFromFile>
+    <Exec ContinueOnError="true" WorkingDirectory=".." Command="$(GitRevParse)" ConsoleToMSBuild="true">
+      <Output TaskParameter="ConsoleOutput" PropertyName="CommitHash" />
+    </Exec>
+    <Exec WorkingDirectory=".." Command="$(UpdateAssemblyInfo)" Timeout="60000" Condition="'$(CommitHash)'!='$(LastCommitHash)'" />
+    <WriteLinesToFile Lines="$(CommitHash)" File="@(UpdateAssemblyInfoStamp)" Overwrite="true" Condition="'$(CommitHash)'!='$(LastCommitHash)'" />
   </Target>
-  
+
 </Project>

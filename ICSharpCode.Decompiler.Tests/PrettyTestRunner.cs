@@ -21,7 +21,9 @@ using System.CodeDom.Compiler;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+
 using ICSharpCode.Decompiler.Tests.Helpers;
+
 using NUnit.Framework;
 
 namespace ICSharpCode.Decompiler.Tests
@@ -38,9 +40,11 @@ namespace ICSharpCode.Decompiler.Tests
 				.Where(m => m.GetCustomAttributes(typeof(TestAttribute), false).Any())
 				.Select(m => m.Name)
 				.ToArray();
-			foreach (var file in new DirectoryInfo(TestCasePath).EnumerateFiles()) {
+			foreach (var file in new DirectoryInfo(TestCasePath).EnumerateFiles())
+			{
 				if (file.Extension.Equals(".il", StringComparison.OrdinalIgnoreCase)
-					|| file.Extension.Equals(".cs", StringComparison.OrdinalIgnoreCase)) {
+					|| file.Extension.Equals(".cs", StringComparison.OrdinalIgnoreCase))
+				{
 					var testName = file.Name.Split('.')[0];
 					Assert.Contains(testName, testNames);
 				}
@@ -55,30 +59,56 @@ namespace ICSharpCode.Decompiler.Tests
 
 		static readonly CompilerOptions[] roslynOnlyOptions =
 		{
-			CompilerOptions.UseRoslyn,
-			CompilerOptions.Optimize | CompilerOptions.UseRoslyn
+			CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.UseRoslynLatest,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest,
+		};
+
+		static readonly CompilerOptions[] roslyn2OrNewerOptions =
+		{
+			CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.UseRoslynLatest,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest,
+		};
+
+		static readonly CompilerOptions[] roslynLatestOnlyOptions =
+		{
+			CompilerOptions.UseRoslynLatest,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest,
 		};
 
 		static readonly CompilerOptions[] dotnetCoreOnlyOptions =
 		{
-			CompilerOptions.UseRoslyn | CompilerOptions.ReferenceCore,
-			CompilerOptions.Optimize | CompilerOptions.UseRoslyn | CompilerOptions.ReferenceCore
+			CompilerOptions.UseRoslynLatest | CompilerOptions.ReferenceCore,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest | CompilerOptions.ReferenceCore,
 		};
 
 		static readonly CompilerOptions[] defaultOptions =
 		{
 			CompilerOptions.None,
 			CompilerOptions.Optimize,
-			CompilerOptions.UseRoslyn,
-			CompilerOptions.Optimize | CompilerOptions.UseRoslyn
+			CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.UseRoslynLatest,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest,
 		};
 
 		static readonly CompilerOptions[] defaultOptionsWithMcs =
 		{
 			CompilerOptions.None,
 			CompilerOptions.Optimize,
-			CompilerOptions.UseRoslyn,
-			CompilerOptions.Optimize | CompilerOptions.UseRoslyn,
+			CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn1_3_2,
+			CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslyn2_10_0,
+			CompilerOptions.UseRoslynLatest,
+			CompilerOptions.Optimize | CompilerOptions.UseRoslynLatest,
 			CompilerOptions.UseMcs,
 			CompilerOptions.Optimize | CompilerOptions.UseMcs
 		};
@@ -135,8 +165,15 @@ namespace ICSharpCode.Decompiler.Tests
 		{
 			RunForLibrary(cscOptions: cscOptions, decompilerSettings: new DecompilerSettings {
 				// legacy csc generates a dead store in debug builds
-				RemoveDeadStores = (cscOptions == CompilerOptions.None)
+				RemoveDeadStores = (cscOptions == CompilerOptions.None),
+				SwitchExpressions = false,
 			});
+		}
+
+		[Test]
+		public void SwitchExpressions([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
@@ -148,7 +185,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void DelegateConstruction([ValueSource(nameof(defaultOptionsWithMcs))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		[Test]
@@ -171,6 +208,15 @@ namespace ICSharpCode.Decompiler.Tests
 
 		[Test]
 		public void Using([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(
+				cscOptions: cscOptions,
+				decompilerSettings: new DecompilerSettings { UseEnhancedUsing = false }
+			);
+		}
+
+		[Test]
+		public void UsingVariables([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
@@ -197,9 +243,9 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void LocalFunctions([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void LocalFunctions([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		[Test]
@@ -252,7 +298,7 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void OutVariables([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void OutVariables([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
@@ -282,7 +328,7 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void ValueTypes([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
+		public void ValueTypes([ValueSource(nameof(defaultOptionsWithMcs))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
@@ -302,13 +348,19 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void CS72_PrivateProtected([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void CS72_PrivateProtected([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
-		public void AsyncMain([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void AsyncForeach([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public void AsyncMain([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			Run(cscOptions: cscOptions);
 		}
@@ -322,23 +374,32 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void AsyncUsing([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(
+				cscOptions: cscOptions,
+				decompilerSettings: new DecompilerSettings { UseEnhancedUsing = false }
+			);
 		}
 
 		[Test]
-		public void CustomTaskType([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void CustomTaskType([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
-		public void NullableRefTypes([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void NullableRefTypes([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
-		public void NativeInts([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void NativeInts([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
+		}
+
+		[Test]
+		public void FunctionPointers([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
@@ -356,19 +417,19 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void CS73_StackAllocInitializers([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void CS73_StackAllocInitializers([ValueSource(nameof(roslynLatestOnlyOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
-		public void RefLocalsAndReturns([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void RefLocalsAndReturns([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
 
 		[Test]
-		public void ThrowExpressions([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void ThrowExpressions([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
@@ -386,7 +447,7 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void TupleTests([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void TupleTests([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
 		}
@@ -400,7 +461,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void OptionalArguments([ValueSource(nameof(defaultOptions))] CompilerOptions cscOptions)
 		{
-			RunForLibrary(cscOptions: cscOptions);
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		[Test]
@@ -488,9 +549,21 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void Discards([ValueSource(nameof(roslynOnlyOptions))] CompilerOptions cscOptions)
+		public void Discards([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
 		{
 			RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public void DeconstructionTests([ValueSource(nameof(roslyn2OrNewerOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions);
+		}
+
+		[Test]
+		public void CS9_ExtensionGetEnumerator([ValueSource(nameof(dotnetCoreOnlyOptions))] CompilerOptions cscOptions)
+		{
+			RunForLibrary(cscOptions: cscOptions | CompilerOptions.Preview);
 		}
 
 		void RunForLibrary([CallerMemberName] string testName = null, AssemblerOptions asmOptions = AssemblerOptions.None, CompilerOptions cscOptions = CompilerOptions.None, DecompilerSettings decompilerSettings = null)
@@ -502,22 +575,26 @@ namespace ICSharpCode.Decompiler.Tests
 		{
 			var csFile = Path.Combine(TestCasePath, testName + ".cs");
 			var exeFile = Path.Combine(TestCasePath, testName) + Tester.GetSuffix(cscOptions) + ".exe";
-			if (cscOptions.HasFlag(CompilerOptions.Library)) {
+			if (cscOptions.HasFlag(CompilerOptions.Library))
+			{
 				exeFile = Path.ChangeExtension(exeFile, ".dll");
 			}
 
 			// 1. Compile
 			CompilerResults output = null;
-			try {
+			try
+			{
 				output = Tester.CompileCSharp(csFile, cscOptions, exeFile);
-			} finally {
+			}
+			finally
+			{
 				if (output != null)
 					output.TempFiles.Delete();
 			}
 
 			// 2. Decompile
 			var decompiled = Tester.DecompileCSharp(exeFile, decompilerSettings ?? Tester.GetSettings(cscOptions));
-			
+
 			// 3. Compile
 			CodeAssert.FilesAreEqual(csFile, decompiled, Tester.GetPreprocessorSymbols(cscOptions).ToArray());
 		}

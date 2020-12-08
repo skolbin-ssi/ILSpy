@@ -44,9 +44,32 @@ namespace ICSharpCode.Decompiler.Metadata
 
 	public interface IAssemblyResolver
 	{
+#if !VSADDIN
 		PEFile Resolve(IAssemblyReference reference);
 		PEFile ResolveModule(PEFile mainModule, string moduleName);
-		bool IsGacAssembly(IAssemblyReference reference);
+#endif
+	}
+
+	public class AssemblyReferenceClassifier
+	{
+		/// <summary>
+		/// For GAC assembly references, the WholeProjectDecompiler will omit the HintPath in the
+		/// generated .csproj file.
+		/// </summary>
+		public virtual bool IsGacAssembly(IAssemblyReference reference)
+		{
+			return UniversalAssemblyResolver.GetAssemblyInGac(reference) != null;
+		}
+
+		/// <summary>
+		/// For .NET Core framework references, the WholeProjectDecompiler will omit the
+		/// assembly reference if the runtimePack is already included as an SDK.
+		/// </summary>
+		public virtual bool IsSharedAssembly(IAssemblyReference reference, out string runtimePack)
+		{
+			runtimePack = null;
+			return false;
+		}
 	}
 
 	public interface IAssemblyReference
@@ -86,14 +109,18 @@ namespace ICSharpCode.Decompiler.Metadata
 				builder.Append("PublicKeyToken=");
 
 				var pk_token = PublicKeyToken;
-				if (pk_token != null && pk_token.Length > 0) {
-					for (int i = 0; i < pk_token.Length; i++) {
+				if (pk_token != null && pk_token.Length > 0)
+				{
+					for (int i = 0; i < pk_token.Length; i++)
+					{
 						builder.Append(pk_token[i].ToString("x2"));
 					}
-				} else
+				}
+				else
 					builder.Append("null");
 
-				if (IsRetargetable) {
+				if (IsRetargetable)
+				{
 					builder.Append(sep);
 					builder.Append("Retargetable=Yes");
 				}
@@ -121,10 +148,12 @@ namespace ICSharpCode.Decompiler.Metadata
 
 			var name = new AssemblyNameReference();
 			var tokens = fullName.Split(',');
-			for (int i = 0; i < tokens.Length; i++) {
+			for (int i = 0; i < tokens.Length; i++)
+			{
 				var token = tokens[i].Trim();
 
-				if (i == 0) {
+				if (i == 0)
+				{
 					name.Name = token;
 					continue;
 				}
@@ -133,7 +162,8 @@ namespace ICSharpCode.Decompiler.Metadata
 				if (parts.Length != 2)
 					throw new ArgumentException("Malformed name");
 
-				switch (parts[0].ToLowerInvariant()) {
+				switch (parts[0].ToLowerInvariant())
+				{
 					case "version":
 						name.Version = new Version(parts[1]);
 						break;
@@ -162,6 +192,7 @@ namespace ICSharpCode.Decompiler.Metadata
 		}
 	}
 
+#if !VSADDIN
 	public class AssemblyReference : IAssemblyReference
 	{
 		static readonly SHA1 sha1 = SHA1.Create();
@@ -174,8 +205,32 @@ namespace ICSharpCode.Decompiler.Metadata
 		public bool IsWindowsRuntime => (entry.Flags & AssemblyFlags.WindowsRuntime) != 0;
 		public bool IsRetargetable => (entry.Flags & AssemblyFlags.Retargetable) != 0;
 
-		public string Name => Metadata.GetString(entry.Name);
-		public string FullName => entry.GetFullAssemblyName(Metadata);
+		public string Name {
+			get {
+				try
+				{
+					return Metadata.GetString(entry.Name);
+				}
+				catch (BadImageFormatException)
+				{
+					return $"AR:{Handle}";
+				}
+			}
+		}
+
+		public string FullName {
+			get {
+				try
+				{
+					return entry.GetFullAssemblyName(Metadata);
+				}
+				catch (BadImageFormatException)
+				{
+					return $"fullname(AR:{Handle})";
+				}
+			}
+		}
+
 		public Version Version => entry.Version;
 		public string Culture => Metadata.GetString(entry.Culture);
 		byte[] IAssemblyReference.PublicKeyToken => GetPublicKeyToken();
@@ -185,7 +240,8 @@ namespace ICSharpCode.Decompiler.Metadata
 			if (entry.PublicKeyOrToken.IsNil)
 				return null;
 			var bytes = Metadata.GetBlobBytes(entry.PublicKeyOrToken);
-			if ((entry.Flags & AssemblyFlags.PublicKey) != 0) {
+			if ((entry.Flags & AssemblyFlags.PublicKey) != 0)
+			{
 				return sha1.ComputeHash(bytes).Skip(12).ToArray();
 			}
 			return bytes;
@@ -218,4 +274,5 @@ namespace ICSharpCode.Decompiler.Metadata
 			return FullName;
 		}
 	}
+#endif
 }

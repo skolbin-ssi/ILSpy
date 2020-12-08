@@ -165,11 +165,11 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 					let pname = pi.Name
 					let pvalue = pi.GetValue(customers, null)
 					select new HbmParam {
-							Name = pname,
-							Text = new string[1] {
+						Name = pname,
+						Text = new string[1] {
 								(pvalue == null) ? "null" : pvalue.ToString()
 							}
-						}).ToArray();
+					}).ToArray();
 		}
 
 		public object Join()
@@ -235,18 +235,18 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		public static IEnumerable<char> Issue1310a(bool test)
 		{
 #if ROSLYN && OPT
-			IEnumerable<char> obj = test ? (from c in Enumerable.Range(0, 255)
-												   where char.IsLetter((char)c)
-												   select (char)c) : (from c in Enumerable.Range(0, 255)
-																	  where char.IsDigit((char)c)
-																	  select (char)c);
+			IEnumerable<char> obj = (test ? (from c in Enumerable.Range(0, 255)
+											 where char.IsLetter((char)c)
+											 select (char)c) : (from c in Enumerable.Range(0, 255)
+																where char.IsDigit((char)c)
+																select (char)c));
 			return obj.Concat(obj);
 #else
-			IEnumerable<char> enumerable = test ? (from c in Enumerable.Range(0, 255)
-												   where char.IsLetter((char)c)
-												   select (char)c) : (from c in Enumerable.Range(0, 255)
-																	  where char.IsDigit((char)c)
-																	  select (char)c);
+			IEnumerable<char> enumerable = (test ? (from c in Enumerable.Range(0, 255)
+													where char.IsLetter((char)c)
+													select (char)c) : (from c in Enumerable.Range(0, 255)
+																	   where char.IsDigit((char)c)
+																	   select (char)c));
 			return enumerable.Concat(enumerable);
 #endif
 		}

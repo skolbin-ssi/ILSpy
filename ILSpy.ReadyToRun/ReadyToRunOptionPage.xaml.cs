@@ -19,11 +19,13 @@
 using System.ComponentModel;
 using System.Windows.Controls;
 using System.Xml.Linq;
+
 using ICSharpCode.ILSpy.Options;
 
+using ILSpy.ReadyToRun;
 namespace ICSharpCode.ILSpy.ReadyToRun
 {
-	[ExportOptionPage(Title = "ReadyToRun", Order = 40)]
+	[ExportOptionPage(Title = nameof(global::ILSpy.ReadyToRun.Properties.Resources.ReadyToRun), Order = 40)]
 	partial class ReadyToRunOptionPage : UserControl, IOptionPage
 	{
 		public ReadyToRunOptionPage()
@@ -36,6 +38,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 			Options s = new Options();
 			s.DisassemblyFormat = ReadyToRunOptions.GetDisassemblyFormat(settings);
 			s.IsShowUnwindInfo = ReadyToRunOptions.GetIsShowUnwindInfo(settings);
+			s.IsShowDebugInfo = ReadyToRunOptions.GetIsShowDebugInfo(settings);
 
 			this.DataContext = s;
 		}
@@ -48,7 +51,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 		public void Save(XElement root)
 		{
 			Options s = (Options)this.DataContext;
-			ReadyToRunOptions.SetDisassemblyOptions(root, s.DisassemblyFormat, s.IsShowUnwindInfo);
+			ReadyToRunOptions.SetDisassemblyOptions(root, s.DisassemblyFormat, s.IsShowUnwindInfo, s.IsShowDebugInfo);
 		}
 	}
 
@@ -71,13 +74,25 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 			}
 		}
 
+		private bool isShowDebugInfo;
+
+		public bool IsShowDebugInfo {
+			get {
+				return isShowDebugInfo;
+			}
+			set {
+				isShowDebugInfo = value;
+				OnPropertyChanged(nameof(IsShowDebugInfo));
+			}
+		}
 
 		private string disassemblyFormat;
 
 		public string DisassemblyFormat {
 			get { return disassemblyFormat; }
 			set {
-				if (disassemblyFormat != value) {
+				if (disassemblyFormat != value)
+				{
 					disassemblyFormat = value;
 					OnPropertyChanged(nameof(DisassemblyFormat));
 				}
@@ -88,7 +103,8 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		protected virtual void OnPropertyChanged(string propertyName)
 		{
-			if (PropertyChanged != null) {
+			if (PropertyChanged != null)
+			{
 				PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
 			}
 		}

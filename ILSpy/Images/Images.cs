@@ -17,14 +17,11 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
-using System.Windows.Media.Imaging;
-using System.Windows.Media;
-using System.Windows;
 using System.Collections.Generic;
-using System.Windows.Controls;
-using System.Windows.Markup;
 using System.IO;
-using System.Windows.Shapes;
+using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace ICSharpCode.ILSpy
 {
@@ -50,6 +47,7 @@ namespace ICSharpCode.ILSpy
 		public static readonly ImageSource Namespace = Load("Namespace");
 
 		public static readonly ImageSource ReferenceFolder = Load("ReferenceFolder");
+		public static readonly ImageSource NuGet = Load(null, "Images/NuGet.png");
 
 		public static readonly ImageSource SubTypes = Load("SubTypes");
 		public static readonly ImageSource SuperTypes = Load("SuperTypes");
@@ -101,7 +99,8 @@ namespace ICSharpCode.ILSpy
 			if (icon.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
 				return LoadImage(part, icon);
 			Uri uri = GetUri(part, icon + ".xaml");
-			if (ResourceExists(uri)) {
+			if (ResourceExists(uri))
+			{
 				return new DrawingImage(LoadDrawingGroup(part, icon));
 			}
 			return LoadImage(part, icon + ".png");
@@ -126,16 +125,22 @@ namespace ICSharpCode.ILSpy
 			var assembly = part?.GetType().Assembly;
 			string prefix;
 			UriKind kind;
-			if (absolute) {
+			if (absolute)
+			{
 				prefix = "pack://application:,,,/";
 				kind = UriKind.Absolute;
-			} else {
+			}
+			else
+			{
 				prefix = "/";
 				kind = UriKind.Relative;
 			}
-			if (part == null || assembly == typeof(Images).Assembly) {
+			if (part == null || assembly == typeof(Images).Assembly)
+			{
 				uri = new Uri(prefix + icon, kind);
-			} else {
+			}
+			else
+			{
 				var name = assembly.GetName();
 				uri = new Uri(prefix + name.Name + ";v" + name.Version + ";component/" + icon, kind);
 			}
@@ -145,10 +150,13 @@ namespace ICSharpCode.ILSpy
 
 		private static bool ResourceExists(Uri uri)
 		{
-			try {
+			try
+			{
 				Application.GetResourceStream(uri);
 				return true;
-			} catch (IOException) {
+			}
+			catch (IOException)
+			{
 				return false;
 			}
 		}
@@ -184,7 +192,8 @@ namespace ICSharpCode.ILSpy
 			protected override ImageSource GetBaseImage(TypeIcon icon)
 			{
 				ImageSource baseImage;
-				switch (icon) {
+				switch (icon)
+				{
 					case TypeIcon.Class:
 						baseImage = Images.Class;
 						break;
@@ -230,7 +239,8 @@ namespace ICSharpCode.ILSpy
 			protected override ImageSource GetBaseImage(MemberIcon icon)
 			{
 				ImageSource baseImage;
-				switch (icon) {
+				switch (icon)
+				{
 					case MemberIcon.Field:
 						baseImage = Images.Field;
 						break;
@@ -291,9 +301,12 @@ namespace ICSharpCode.ILSpy
 			public ImageSource GetIcon(T icon, AccessOverlayIcon overlay, bool isStatic)
 			{
 				var iconKey = (icon, overlay, isStatic);
-				if (cache.ContainsKey(iconKey)) {
+				if (cache.ContainsKey(iconKey))
+				{
 					return cache[iconKey];
-				} else {
+				}
+				else
+				{
 					ImageSource result = BuildMemberIcon(icon, overlay, isStatic);
 					cache.Add(iconKey, result);
 					return result;
@@ -313,7 +326,8 @@ namespace ICSharpCode.ILSpy
 			private static ImageSource GetOverlayImage(AccessOverlayIcon overlay)
 			{
 				ImageSource overlayImage;
-				switch (overlay) {
+				switch (overlay)
+				{
 					case AccessOverlayIcon.Public:
 						overlayImage = null;
 						break;
@@ -349,16 +363,20 @@ namespace ICSharpCode.ILSpy
 
 				Drawing baseDrawing = new ImageDrawing(baseImage, iconRect);
 
-				if (overlay != null) {
+				if (overlay != null)
+				{
 					var nestedGroup = new DrawingGroup { Transform = new ScaleTransform(0.8, 0.8) };
 					nestedGroup.Children.Add(baseDrawing);
 					group.Children.Add(nestedGroup);
 					group.Children.Add(new ImageDrawing(overlay, iconRect));
-				} else {
+				}
+				else
+				{
 					group.Children.Add(baseDrawing);
 				}
 
-				if (isStatic) {
+				if (isStatic)
+				{
 					group.Children.Add(new ImageDrawing(Images.OverlayStatic, iconRect));
 				}
 

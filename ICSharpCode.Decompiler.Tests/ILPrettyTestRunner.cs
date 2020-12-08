@@ -20,7 +20,9 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+
 using ICSharpCode.Decompiler.Tests.Helpers;
+
 using NUnit.Framework;
 
 namespace ICSharpCode.Decompiler.Tests
@@ -37,8 +39,10 @@ namespace ICSharpCode.Decompiler.Tests
 				.Where(m => m.GetCustomAttributes(typeof(TestAttribute), false).Any())
 				.Select(m => m.Name)
 				.ToArray();
-			foreach (var file in new DirectoryInfo(TestCasePath).EnumerateFiles()) {
-				if (file.Extension.Equals(".il", StringComparison.OrdinalIgnoreCase)) {
+			foreach (var file in new DirectoryInfo(TestCasePath).EnumerateFiles())
+			{
+				if (file.Extension.Equals(".il", StringComparison.OrdinalIgnoreCase))
+				{
 					var testName = file.Name.Split('.')[0];
 					Assert.Contains(testName, testNames);
 					Assert.IsTrue(File.Exists(Path.Combine(TestCasePath, testName + ".cs")));
@@ -109,13 +113,13 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void FSharpUsing_Debug()
 		{
-			Run(settings: new DecompilerSettings { RemoveDeadStores = true });
+			Run(settings: new DecompilerSettings { RemoveDeadStores = true, UseEnhancedUsing = false });
 		}
 
 		[Test]
 		public void FSharpUsing_Release()
 		{
-			Run(settings: new DecompilerSettings { RemoveDeadStores = true });
+			Run(settings: new DecompilerSettings { RemoveDeadStores = true, UseEnhancedUsing = false });
 		}
 
 		[Test]
@@ -125,13 +129,25 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
-		public void CS1xSwitch_Debug()
+		public void EvalOrder()
 		{
 			Run();
 		}
 
 		[Test]
+		public void CS1xSwitch_Debug()
+		{
+			Run(settings: new DecompilerSettings { SwitchExpressions = false });
+		}
+
+		[Test]
 		public void CS1xSwitch_Release()
+		{
+			Run(settings: new DecompilerSettings { SwitchExpressions = false });
+		}
+
+		[Test]
+		public void UnknownTypes()
 		{
 			Run();
 		}
@@ -179,6 +195,12 @@ namespace ICSharpCode.Decompiler.Tests
 		}
 
 		[Test]
+		public void Issue2104()
+		{
+			Run();
+		}
+
+		[Test]
 		public void ConstantBlobs()
 		{
 			Run();
@@ -193,7 +215,7 @@ namespace ICSharpCode.Decompiler.Tests
 		[Test]
 		public void Unsafe()
 		{
-			Run();
+			Run(assemblerOptions: AssemblerOptions.Library | AssemblerOptions.UseLegacyAssembler);
 		}
 
 		[Test]
@@ -222,12 +244,13 @@ namespace ICSharpCode.Decompiler.Tests
 			Run();
 		}
 
-		void Run([CallerMemberName] string testName = null, DecompilerSettings settings = null)
+		void Run([CallerMemberName] string testName = null, DecompilerSettings settings = null,
+			AssemblerOptions assemblerOptions = AssemblerOptions.Library)
 		{
 			var ilFile = Path.Combine(TestCasePath, testName + ".il");
 			var csFile = Path.Combine(TestCasePath, testName + ".cs");
 
-			var executable = Tester.AssembleIL(ilFile, AssemblerOptions.Library);
+			var executable = Tester.AssembleIL(ilFile, assemblerOptions);
 			var decompiled = Tester.DecompileCSharp(executable, settings);
 
 			CodeAssert.FilesAreEqual(csFile, decompiled);
@@ -237,7 +260,8 @@ namespace ICSharpCode.Decompiler.Tests
 
 		static void CopyFSharpCoreDll()
 		{
-			lock (copyLock) {
+			lock (copyLock)
+			{
 				if (File.Exists(Path.Combine(TestCasePath, "FSharp.Core.dll")))
 					return;
 				string fsharpCoreDll = Path.Combine(TestCasePath, "..\\..\\..\\ILSpy-tests\\FSharp\\FSharp.Core.dll");

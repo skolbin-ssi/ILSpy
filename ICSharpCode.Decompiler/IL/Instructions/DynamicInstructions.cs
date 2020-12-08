@@ -18,7 +18,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
+
 using ICSharpCode.Decompiler.IL.Patterns;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
@@ -111,7 +113,8 @@ namespace ICSharpCode.Decompiler.IL
 		{
 			output.Write('(');
 			int j = 0;
-			foreach (var (arg, info) in arguments) {
+			foreach (var (arg, info) in arguments)
+			{
 				if (j > 0)
 					output.Write(", ");
 				output.Write("[flags: ");
@@ -185,10 +188,12 @@ namespace ICSharpCode.Decompiler.IL
 			WriteBinderFlags(output, options);
 			output.Write(' ');
 			output.Write(Name);
-			if (TypeArguments.Count > 0) {
+			if (TypeArguments.Count > 0)
+			{
 				output.Write('<');
 				int i = 0;
-				foreach (var typeArg in TypeArguments) {
+				foreach (var typeArg in TypeArguments)
+				{
 					if (i > 0)
 						output.Write(", ");
 					typeArg.WriteTo(output);
@@ -272,7 +277,8 @@ namespace ICSharpCode.Decompiler.IL
 
 		public override CSharpArgumentInfo GetArgumentInfoOfChild(int index)
 		{
-			switch (index) {
+			switch (index)
+			{
 				case 0:
 					return TargetArgumentInfo;
 				case 1:
@@ -413,7 +419,8 @@ namespace ICSharpCode.Decompiler.IL
 
 		public override CSharpArgumentInfo GetArgumentInfoOfChild(int index)
 		{
-			switch (index) {
+			switch (index)
+			{
 				case 0:
 					return LeftArgumentInfo;
 				case 1:
@@ -462,7 +469,8 @@ namespace ICSharpCode.Decompiler.IL
 
 		public override CSharpArgumentInfo GetArgumentInfoOfChild(int index)
 		{
-			switch (index) {
+			switch (index)
+			{
 				case 0:
 					return LeftArgumentInfo;
 				case 1:
@@ -498,7 +506,8 @@ namespace ICSharpCode.Decompiler.IL
 
 		public override StackType ResultType {
 			get {
-				switch (Operation) {
+				switch (Operation)
+				{
 					case ExpressionType.IsFalse:
 					case ExpressionType.IsTrue:
 						return StackType.I4; // bool
@@ -510,7 +519,8 @@ namespace ICSharpCode.Decompiler.IL
 
 		public override CSharpArgumentInfo GetArgumentInfoOfChild(int index)
 		{
-			switch (index) {
+			switch (index)
+			{
 				case 0:
 					return OperandArgumentInfo;
 				default:

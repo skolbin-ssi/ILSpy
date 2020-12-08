@@ -14,8 +14,8 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 			public ArgumentCheckingCtor(object simpleObj, int? nullableInt)
 			{
-				this.simpleObj = (simpleObj ?? throw new ArgumentNullException("simpleObj"));
-				this.nullableInt = (nullableInt ?? throw new ArgumentNullException("nullableInt"));
+				this.simpleObj = simpleObj ?? throw new ArgumentNullException("simpleObj");
+				this.nullableInt = nullableInt ?? throw new ArgumentNullException("nullableInt");
 			}
 
 			public ArgumentCheckingCtor(string input)
@@ -32,7 +32,8 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 			private static int? GetIntOrNull(string v)
 			{
-				if (int.TryParse(v, out int result)) {
+				if (int.TryParse(v, out var result))
+				{
 					return result;
 				}
 

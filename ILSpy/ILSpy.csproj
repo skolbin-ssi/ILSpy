@@ -48,16 +48,18 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
 
+  <Import Project="..\packages.props" />
+
   <ItemGroup>
-    <PackageReference Include="AvalonEdit" Version="6.0.1" />
+    <PackageReference Include="AvalonEdit" Version="$(AvalonEditVersion)" />
+    <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="$(SystemCompilerServicesUnsafeVersion)" />
     <PackageReference Include="Dirkster.AvalonDock" Version="3.6.1" />
     <PackageReference Include="Microsoft.VisualStudio.Composition" Version="16.3.7" />
     <PackageReference Include="System.Composition" Version="1.3.0" />
-    <PackageReference Include="Mono.Cecil" Version="0.10.3" />
+    <PackageReference Include="Mono.Cecil" Version="$(MonoCecilVersion)" />
     <PackageReference Include="OSVersionHelper" Version="1.0.11" />
     <PackageReference Include="DataGridExtensions" Version="2.1.1" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.8.1" />
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.7.0" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.19" />
   </ItemGroup>
 
@@ -69,7 +71,7 @@
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageReference Include="Microsoft.DiaSymReader.Converter.Xml" Version="1.1.0-beta1-63314-01" />
   </ItemGroup>
-    
+
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
   </ItemGroup>
@@ -118,6 +120,7 @@
     <Compile Include="Commands\DisassembleAllCommand.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Commands\CommandWrapper.cs" />
+    <Compile Include="Metadata\GoToTokenCommand.cs" />
     <Compile Include="Commands\ILSpyCommands.cs" />
     <Compile Include="Commands\IProtocolHandler.cs" />
     <Compile Include="Commands\ManageAssemblyListsCommand.cs" />
@@ -128,9 +131,7 @@
     <Compile Include="Commands\ShowDebugSteps.cs" />
     <Compile Include="Commands\SortAssemblyListCommand.cs" />
     <Compile Include="Controls\BoolToVisibilityConverter.cs" />
-    <Compile Include="Controls\CustomDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Controls\CustomDialog.cs" />
     <Compile Include="Controls\GridViewColumnAutoSize.cs" />
     <Compile Include="Controls\MarkupExtensions.cs" />
     <Compile Include="Controls\ResourceObjectTable.xaml.cs">
@@ -175,7 +176,6 @@
       <SubType>Code</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Compile>
-    <Compile Include="Metadata\DataGridCustomTextColumn.cs" />
     <Compile Include="Metadata\DebugTables\LocalConstantTableTreeNode.cs">
       <SubType>Code</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -211,9 +211,11 @@
     <Compile Include="Metadata\FlagsFilterControl.xaml.cs" />
     <Compile Include="Metadata\FlagsTooltip.xaml.cs" />
     <Compile Include="Metadata\HexFilterControl.xaml.cs" />
+    <Compile Include="Metadata\MetaDataGrid.cs" />
     <Compile Include="Metadata\MetadataProtocolHandler.cs" />
     <Compile Include="Metadata\MetadataTableTreeNode.cs" />
     <Compile Include="Metadata\DebugMetadataTreeNode.cs" />
+    <Compile Include="TreeNodes\PackageFolderTreeNode.cs" />
     <Compile Include="ViewModels\LegacyToolPaneModel.cs" />
     <Compile Include="ViewModels\ManageAssemblyListsViewModel.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
@@ -383,7 +385,7 @@
     <Compile Include="Search\LiteralSearchStrategy.cs" />
     <Compile Include="LoadedAssembly.cs" />
     <Compile Include="LoadedAssemblyExtensions.cs" />
-    <Compile Include="LoadedNugetPackage.cs" />
+    <Compile Include="LoadedPackage.cs" />
     <Compile Include="Search\MemberSearchStrategy.cs" />
     <Compile Include="Search\MetadataTokenSearchStrategy.cs" />
     <Compile Include="NativeMethods.cs" />
@@ -391,9 +393,6 @@
     <Compile Include="NavigationState.cs" />
     <Compile Include="Commands\OpenCommand.cs" />
     <Compile Include="Commands\OpenFromGacCommand.cs" />
-    <Compile Include="Views\NugetPackageBrowserDialog.xaml.cs">
-      <DependentUpon>NugetPackageBrowserDialog.xaml</DependentUpon>
-    </Compile>
     <Compile Include="Views\OpenFromGacDialog.xaml.cs">
       <DependentUpon>OpenFromGacDialog.xaml</DependentUpon>
     </Compile>
@@ -457,6 +456,7 @@
     <Compile Include="Analyzers\Builtin\TypeExtensionMethodsAnalyzer.cs" />
     <Compile Include="Docking\DockWorkspace.cs" />
     <EmbeddedResource Include="..\doc\ILSpyAboutPage.txt" />
+    <EmbeddedResource Include="..\doc\ILSpyAboutPage_zh_Hans.txt" />
     <EmbeddedResource Include="..\doc\third-party-notices.txt" />
     <EmbeddedResource Include="..\doc\license.txt">
       <Link>license.txt</Link>
@@ -581,7 +581,6 @@
     <Page Include="Metadata\MetadataTableViews.xaml" />
     <Page Include="Views\OpenFromGacDialog.xaml" />
     <Page Include="Views\ManageAssemblyListsDialog.xaml" />
-    <Page Include="Views\NugetPackageBrowserDialog.xaml" />
     <Page Include="Options\DecompilerSettingsPanel.xaml" />
     <Page Include="Options\DisplaySettingsPanel.xaml" />
     <Page Include="Options\MiscSettingsPanel.xaml" />
@@ -840,12 +839,31 @@
     <VCToolsVersionPropsFileNameDefault>Microsoft.VCToolsVersion.default.props</VCToolsVersionPropsFileNameDefault>
     <!-- This is necessary as long as AppVeyor does not offer Visual Studio 2019 RC or later -->
     <VCToolsVersionPropsFileNameVS2019Preview>Microsoft.VCToolsVersion.v142.default.props</VCToolsVersionPropsFileNameVS2019Preview>
-    <VCToolsVersionPropsFile>$(VCBasePath)Auxiliary\Build\$(VCToolsVersionPropsFileNameDefault)</VCToolsVersionPropsFile> 
-    <VCToolsVersionPropsFile Condition="!Exists('$(VCToolsVersionPropsFile)')">$(VCBasePath)Auxiliary\Build\$(VCToolsVersionPropsFileNameVS2019Preview)</VCToolsVersionPropsFile> 
+    <VCToolsVersionPropsFile>$(VCBasePath)Auxiliary\Build\$(VCToolsVersionPropsFileNameDefault)</VCToolsVersionPropsFile>
+    <VCToolsVersionPropsFile Condition="!Exists('$(VCToolsVersionPropsFile)')">$(VCBasePath)Auxiliary\Build\$(VCToolsVersionPropsFileNameVS2019Preview)</VCToolsVersionPropsFile>
   </PropertyGroup>
 
   <Import Project="$(VCToolsVersionPropsFile)" Condition="Exists('$(VCToolsVersionPropsFile)')" />
-  
+
+  <ItemGroup>
+    <SortResXInput Include="Properties\*.resx" />
+    <SortResXInput Include="..\ILSpy.AddIn\*.resx" />
+    <SortResXInput Include="..\ILSpy.ReadyToRun\Properties\*.resx" />
+    <SortResXStamp Include="obj\sort-resx.stamp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Images\NuGet.png" />
+  </ItemGroup>
+
+  <Target Name="SortResX" BeforeTargets="BeforeBuild" Inputs="@(SortResXInput)" Outputs="@(SortResXStamp)">
+    <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
+      <SortResX>powershell -NoProfile -ExecutionPolicy Bypass -File BuildTools/sort-resx.ps1</SortResX>
+    </PropertyGroup>
+    <Exec WorkingDirectory=".." Command="$(SortResX)" Timeout="60000" />
+    <Touch Files="@(SortResXStamp)" AlwaysCreate="true" />
+  </Target>
+
   <Target Name="ApplyStackExtension" AfterTargets="PostBuildEvent">
     <Exec Condition="'$(VCToolsVersion)'!=''" Command="&quot;$(VCBasePath)Tools\MSVC\$(VCToolsVersion)\bin\Hostx64\x64\editbin.exe&quot; /stack:16777216 &quot;$(TargetPath)&quot;&#xD;&#xA;EXIT 0" />
     <Exec Command="&quot;$(TargetFrameworkSDKToolsDirectory)sn.exe&quot; -R &quot;$(TargetPath)&quot; &quot;$(SolutionDir)\ICSharpCode.Decompiler\ICSharpCode.Decompiler.snk&quot;" />

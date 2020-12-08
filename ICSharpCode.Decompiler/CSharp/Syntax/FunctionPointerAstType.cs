@@ -25,53 +25,53 @@
 // THE SOFTWARE.
 
 using System;
-using System.Collections.Generic;
+
 using ICSharpCode.Decompiler.CSharp.Resolver;
-using ICSharpCode.Decompiler.CSharp.TypeSystem;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.TypeSystem;
 
 namespace ICSharpCode.Decompiler.CSharp.Syntax
 {
-	public class FunctionPointerType : AstType
+	public class FunctionPointerAstType : AstType
 	{
 		public static readonly TokenRole PointerRole = new TokenRole("*");
-		public static readonly Role<Identifier> CallingConventionRole = new Role<Identifier>("Target", Identifier.Null);
-		
-		public string CallingConvention {
-			get {
-				return GetChildByRole (CallingConventionRole).Name;
-			}
-			set {
-				SetChildByRole (CallingConventionRole, Identifier.Create (value));
-			}
+		public static readonly Role<AstType> CallingConventionRole = new Role<AstType>("CallConv", AstType.Null);
+
+		public bool HasUnmanagedCallingConvention { get; set; }
+
+		public AstNodeCollection<AstType> CallingConventions {
+			get { return GetChildrenByRole(CallingConventionRole); }
 		}
 
-		public Identifier CallingConventionIdentifier => GetChildByRole(CallingConventionRole);
-		
-		public AstNodeCollection<AstType> TypeArguments {
-			get { return GetChildrenByRole (Roles.TypeArgument); }
+		public AstNodeCollection<ParameterDeclaration> Parameters {
+			get { return GetChildrenByRole(Roles.Parameter); }
 		}
-		
-		public override void AcceptVisitor (IAstVisitor visitor)
+
+		public AstType ReturnType {
+			get { return GetChildByRole(Roles.Type); }
+			set { SetChildByRole(Roles.Type, value); }
+		}
+
+		public override void AcceptVisitor(IAstVisitor visitor)
 		{
 			visitor.VisitFunctionPointerType(this);
 		}
-		
-		public override T AcceptVisitor<T> (IAstVisitor<T> visitor)
+
+		public override T AcceptVisitor<T>(IAstVisitor<T> visitor)
 		{
 			return visitor.VisitFunctionPointerType(this);
 		}
-		
-		public override S AcceptVisitor<T, S> (IAstVisitor<T, S> visitor, T data)
+
+		public override S AcceptVisitor<T, S>(IAstVisitor<T, S> visitor, T data)
 		{
 			return visitor.VisitFunctionPointerType(this, data);
 		}
-		
+
 		protected internal override bool DoMatch(AstNode other, PatternMatching.Match match)
 		{
-			return other is FunctionPointerType o && MatchString(this.CallingConvention, o.CallingConvention)
-				&& this.TypeArguments.DoMatch(o.TypeArguments, match);
+			return other is FunctionPointerAstType o
+				&& this.CallingConventions.DoMatch(o.CallingConventions, match)
+				&& this.Parameters.DoMatch(o.Parameters, match)
+				&& this.ReturnType.DoMatch(o.ReturnType, match);
 		}
 
 		public override ITypeReference ToTypeReference(NameLookupMode lookupMode, InterningProvider interningProvider = null)
@@ -80,4 +80,3 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		}
 	}
 }
-

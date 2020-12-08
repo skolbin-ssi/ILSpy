@@ -442,6 +442,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Cannot create PDB file for {0}, because it does not contain a PE Debug Directory Entry of type &apos;CodeView&apos;..
+        /// </summary>
+        public static string CannotCreatePDBFile {
+            get {
+                return ResourceManager.GetString("CannotCreatePDBFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Check again.
         /// </summary>
         public static string CheckAgain {
@@ -559,6 +568,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DEBUG -- Dump PDB as XML.
+        /// </summary>
+        public static string DEBUGDumpPDBAsXML {
+            get {
+                return ResourceManager.GetString("DEBUGDumpPDBAsXML", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Debug Steps.
         /// </summary>
         public static string DebugSteps {
@@ -577,11 +595,38 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Decompilation complete in {0:F1} seconds..
+        /// </summary>
+        public static string DecompilationCompleteInF1Seconds {
+            get {
+                return ResourceManager.GetString("DecompilationCompleteInF1Seconds", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Decompile.
+        /// </summary>
+        public static string Decompile {
+            get {
+                return ResourceManager.GetString("Decompile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Decompiler.
         /// </summary>
         public static string Decompiler {
             get {
                 return ResourceManager.GetString("Decompiler", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Always inline local variables if possible.
+        /// </summary>
+        public static string DecompilerSettings_AggressiveInlining {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.AggressiveInlining", resourceCulture);
             }
         }
         
@@ -609,6 +654,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_AlwaysCastTargetsOfExplicitInterfaceImplementationCalls {
             get {
                 return ResourceManager.GetString("DecompilerSettings.AlwaysCastTargetsOfExplicitInterfaceImplementationCalls", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Always qualify member references.
+        /// </summary>
+        public static string DecompilerSettings_AlwaysQualifyMemberReferences {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.AlwaysQualifyMemberReferences", resourceCulture);
             }
         }
         
@@ -654,15 +708,6 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_AsyncEnumerator {
             get {
                 return ResourceManager.GetString("DecompilerSettings.AsyncEnumerator", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Decompile ?. and ?[] operators.
-        /// </summary>
-        public static string DecompilerSettings_DecompileAndOperators {
-            get {
-                return ResourceManager.GetString("DecompilerSettings.DecompileAndOperators", resourceCulture);
             }
         }
         
@@ -757,11 +802,29 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Decompile foreach statements with GetEnumerator extension methods.
+        /// </summary>
+        public static string DecompilerSettings_DecompileForEachWithGetEnumeratorExtension {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.DecompileForEachWithGetEnumeratorExtension", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Decompile use of the &apos;dynamic&apos; type.
         /// </summary>
         public static string DecompilerSettings_DecompileUseOfTheDynamicType {
             get {
                 return ResourceManager.GetString("DecompilerSettings.DecompileUseOfTheDynamicType", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Detect deconstruction assignments.
+        /// </summary>
+        public static string DecompilerSettings_Deconstruction {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.Deconstruction", resourceCulture);
             }
         }
         
@@ -829,7 +892,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Transform to do-while, if possible..
+        ///   Looks up a localized string similar to Transform to do-while, if possible.
         /// </summary>
         public static string DecompilerSettings_DoWhileStatement {
             get {
@@ -838,7 +901,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Transform to for, if possible..
+        ///   Looks up a localized string similar to Transform to for, if possible.
         /// </summary>
         public static string DecompilerSettings_ForStatement {
             get {
@@ -856,11 +919,29 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Function pointers.
+        /// </summary>
+        public static string DecompilerSettings_FunctionPointers {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.FunctionPointers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Include XML documentation comments in the decompiled code.
         /// </summary>
         public static string DecompilerSettings_IncludeXMLDocumentationCommentsInTheDecompiledCode {
             get {
                 return ResourceManager.GetString("DecompilerSettings.IncludeXMLDocumentationCommentsInTheDecompiledCode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allow init; accessors.
+        /// </summary>
+        public static string DecompilerSettings_InitAccessors {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.InitAccessors", resourceCulture);
             }
         }
         
@@ -939,6 +1020,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Decompile ?. and ?[] operators.
+        /// </summary>
+        public static string DecompilerSettings_NullPropagation {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.NullPropagation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Object/collection initializer expressions.
         /// </summary>
         public static string DecompilerSettings_ObjectCollectionInitializerExpressions {
@@ -1002,7 +1092,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Separate local variable declarations and initializers (int x = 5; -&gt; int x; x = 5;), if possible..
+        ///   Looks up a localized string similar to Separate local variable declarations and initializers (int x = 5; -&gt; int x; x = 5;), if possible.
         /// </summary>
         public static string DecompilerSettings_SeparateLocalVariableDeclarations {
             get {
@@ -1020,11 +1110,47 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Detect switch on integer even if IL code does not use a jump table.
+        /// </summary>
+        public static string DecompilerSettings_SparseIntegerSwitch {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.SparseIntegerSwitch", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Decompile &apos;string.Concat(a, b)&apos; calls into &apos;a + b&apos;.
+        /// </summary>
+        public static string DecompilerSettings_StringConcat {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.StringConcat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Switch expressions.
+        /// </summary>
+        public static string DecompilerSettings_SwitchExpressions {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.SwitchExpressions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Use discards.
         /// </summary>
         public static string DecompilerSettings_UseDiscards {
             get {
                 return ResourceManager.GetString("DecompilerSettings.UseDiscards", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use enhanced using variable declarations.
+        /// </summary>
+        public static string DecompilerSettings_UseEnhancedUsing {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UseEnhancedUsing", resourceCulture);
             }
         }
         
@@ -1124,6 +1250,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_UsePatternBasedFixedStatement {
             get {
                 return ResourceManager.GetString("DecompilerSettings.UsePatternBasedFixedStatement", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use ref locals to accurately represent order of evaluation.
+        /// </summary>
+        public static string DecompilerSettings_UseRefLocalsForAccurateOrderOfEvaluation {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UseRefLocalsForAccurateOrderOfEvaluation", resourceCulture);
             }
         }
         
@@ -1380,6 +1515,33 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Generation complete in {0} seconds..
+        /// </summary>
+        public static string GenerationCompleteInSeconds {
+            get {
+                return ResourceManager.GetString("GenerationCompleteInSeconds", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Generation was cancelled..
+        /// </summary>
+        public static string GenerationWasCancelled {
+            get {
+                return ResourceManager.GetString("GenerationWasCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Go to token.
+        /// </summary>
+        public static string GoToToken {
+            get {
+                return ResourceManager.GetString("GoToToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Hide empty metadata tables from tree view.
         /// </summary>
         public static string HideEmptyMetadataTables {
@@ -1389,11 +1551,29 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Hightlight current line.
+        /// </summary>
+        public static string HighlightCurrentLine {
+            get {
+                return ResourceManager.GetString("HighlightCurrentLine", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to Highlight matching braces.
         /// </summary>
         public static string HighlightMatchingBraces {
             get {
                 return ResourceManager.GetString("HighlightMatchingBraces", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ILSpyAboutPage.txt.
+        /// </summary>
+        public static string ILSpyAboutPageTxt {
+            get {
+                return ResourceManager.GetString("ILSpyAboutPageTxt", resourceCulture);
             }
         }
         
@@ -1678,6 +1858,42 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Portable PDB|*.pdb|All files|*.*.
+        /// </summary>
+        public static string PortablePDBPdbAllFiles {
+            get {
+                return ResourceManager.GetString("PortablePDBPdbAllFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You can change this by toggling the setting at Options &gt; Decompiler &gt; Other &gt; Use new SDK style format for generated project files (*.csproj)..
+        /// </summary>
+        public static string ProjectExportFormatChangeSettingHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatChangeSettingHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A Non-SDK project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format..
+        /// </summary>
+        public static string ProjectExportFormatNonSDKHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatNonSDKHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A SDK-style project was generated. Learn more at https://docs.microsoft.com/en-us/nuget/resources/check-project-format..
+        /// </summary>
+        public static string ProjectExportFormatSDKHint {
+            get {
+                return ResourceManager.GetString("ProjectExportFormatSDKHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to for ex. property getter/setter access. To get optimal decompilation results, please manually add the missing references to the list of loaded assemblies..
         /// </summary>
         public static string PropertyManuallyMissingReferencesListLoadedAssemblies {
@@ -1928,6 +2144,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string SelectList {
             get {
                 return ResourceManager.GetString("SelectList", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Select PDB....
+        /// </summary>
+        public static string SelectPDB {
+            get {
+                return ResourceManager.GetString("SelectPDB", resourceCulture);
             }
         }
         
@@ -2292,6 +2517,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Visual Studio Solution file|*.sln|All files|*.*.
+        /// </summary>
+        public static string VisualStudioSolutionFileSlnAllFiles {
+            get {
+                return ResourceManager.GetString("VisualStudioSolutionFileSlnAllFiles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Warning: This assembly is marked as &apos;reference assembly&apos;, which means that it only contains metadata and no executable code..
         /// </summary>
         public static string WarningAsmMarkedRef {
@@ -2319,7 +2553,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Close all documents.
+        ///   Looks up a localized string similar to _Close all documents.
         /// </summary>
         public static string Window_CloseAllDocuments {
             get {
@@ -2328,7 +2562,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Reset layout.
+        ///   Looks up a localized string similar to _Reset layout.
         /// </summary>
         public static string Window_ResetLayout {
             get {

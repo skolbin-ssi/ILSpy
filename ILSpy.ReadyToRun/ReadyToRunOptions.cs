@@ -30,48 +30,75 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		public static string GetDisassemblyFormat(ILSpySettings settings)
 		{
-			if (settings == null) {
+			if (settings == null)
+			{
 				settings = ILSpySettings.Load();
 			}
 			XElement e = settings[ns + "ReadyToRunOptions"];
 			XAttribute a = e.Attribute("DisassemblyFormat");
-			if (a == null) {
+			if (a == null)
+			{
 				return ReadyToRunOptions.intel;
-			} else {
+			}
+			else
+			{
 				return (string)a;
 			}
 		}
 
 		public static bool GetIsShowUnwindInfo(ILSpySettings settings)
-
 		{
-			if (settings == null) {
+			if (settings == null)
+			{
 				settings = ILSpySettings.Load();
 			}
 			XElement e = settings[ns + "ReadyToRunOptions"];
 			XAttribute a = e.Attribute("IsShowUnwindInfo");
 
-			if (a == null) {
+			if (a == null)
+			{
 				return false;
-			} else {
+			}
+			else
+			{
 				return (bool)a;
 			}
 		}
 
-		public static void SetDisassemblyOptions(XElement root, string disassemblyFormat, bool IsShowUnwindInfo)
+		public static bool GetIsShowDebugInfo(ILSpySettings settings)
 		{
-			XElement section = new XElement(ns + "ReadyToRunOptions");
-			section.SetAttributeValue("DisassemblyFormat", disassemblyFormat);
-			section.SetAttributeValue("IsShowUnwindInfo", IsShowUnwindInfo);
-			XElement existingElement = root.Element(ns + "ReadyToRunOptions");
-			if (existingElement != null) {
-				existingElement.ReplaceWith(section);
-			} else {
-				root.Add(section);
+			if (settings == null)
+			{
+				settings = ILSpySettings.Load();
+			}
+			XElement e = settings[ns + "ReadyToRunOptions"];
+			XAttribute a = e.Attribute("IsShowDebugInfo");
+
+			if (a == null)
+			{
+				return true;
+			}
+			else
+			{
+				return (bool)a;
 			}
 		}
 
-
+		public static void SetDisassemblyOptions(XElement root, string disassemblyFormat, bool isShowUnwindInfo, bool isShowDebugInfo)
+		{
+			XElement section = new XElement(ns + "ReadyToRunOptions");
+			section.SetAttributeValue("DisassemblyFormat", disassemblyFormat);
+			section.SetAttributeValue("IsShowUnwindInfo", isShowUnwindInfo);
+			section.SetAttributeValue("IsShowDebugInfo", isShowDebugInfo);
+			XElement existingElement = root.Element(ns + "ReadyToRunOptions");
+			if (existingElement != null)
+			{
+				existingElement.ReplaceWith(section);
+			}
+			else
+			{
+				root.Add(section);
+			}
+		}
 	}
-
 }

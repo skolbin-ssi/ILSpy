@@ -1,32 +1,32 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using ICSharpCode.Decompiler;
+
 using ICSharpCode.Decompiler.Metadata;
-using ICSharpCode.Decompiler.Util;
-using Mono.Cecil;
 
 namespace ICSharpCode.ILSpy.AddIn
 {
 	public class AssemblyFileFinder
 	{
-		public static string FindAssemblyFile(AssemblyDefinition assemblyDefinition, string assemblyFile)
+		public static string FindAssemblyFile(Mono.Cecil.AssemblyDefinition assemblyDefinition, string assemblyFile)
 		{
-			var assemblyResolver = new UniversalAssemblyResolver(assemblyFile, false,
-				DetectTargetFrameworkId(assemblyDefinition, assemblyFile));
-			if (IsReferenceAssembly(assemblyDefinition, assemblyFile)) {
-				assemblyResolver.RemoveSearchDirectory(Path.GetDirectoryName(assemblyFile));
+			string tfi = DetectTargetFrameworkId(assemblyDefinition, assemblyFile);
+			UniversalAssemblyResolver assemblyResolver;
+			if (IsReferenceAssembly(assemblyDefinition, assemblyFile))
+			{
+				assemblyResolver = new UniversalAssemblyResolver(null, throwOnError: false, tfi);
 			}
-			return assemblyResolver.FindAssemblyFile(
-				ICSharpCode.Decompiler.Metadata.AssemblyNameReference.Parse(assemblyDefinition.Name.FullName));
+			else
+			{
+				assemblyResolver = new UniversalAssemblyResolver(assemblyFile, throwOnError: false, tfi);
+			}
+
+			return assemblyResolver.FindAssemblyFile(AssemblyNameReference.Parse(assemblyDefinition.Name.FullName));
 		}
 
 		static readonly string RefPathPattern = @"NuGetFallbackFolder[/\\][^/\\]+[/\\][^/\\]+[/\\]ref[/\\]";
 
-		public static bool IsReferenceAssembly(AssemblyDefinition assemblyDef, string assemblyFile)
+		public static bool IsReferenceAssembly(Mono.Cecil.AssemblyDefinition assemblyDef, string assemblyFile)
 		{
 			if (assemblyDef.CustomAttributes.Any(ca => ca.AttributeType.FullName == "System.Runtime.CompilerServices.ReferenceAssemblyAttribute"))
 				return true;
@@ -38,26 +38,29 @@ namespace ICSharpCode.ILSpy.AddIn
 
 		static readonly string DetectTargetFrameworkIdRefPathPattern =
 			@"(Reference Assemblies[/\\]Microsoft[/\\]Framework[/\\](?<1>.NETFramework)[/\\]v(?<2>[^/\\]+)[/\\])" +
-			@"|((NuGetFallbackFolder|packs)[/\\](?<1>[^/\\]+)\\(?<2>[^/\\]+)([/\\].*)?[/\\]ref[/\\])";
+			@"|((NuGetFallbackFolder|packs|.nuget[/\\]packages)[/\\](?<1>[^/\\]+)\\(?<2>[^/\\]+)([/\\].*)?[/\\]ref[/\\])";
 
-		public static string DetectTargetFrameworkId(AssemblyDefinition assembly, string assemblyPath = null)
+		public static string DetectTargetFrameworkId(Mono.Cecil.AssemblyDefinition assembly, string assemblyPath = null)
 		{
 			if (assembly == null)
 				throw new ArgumentNullException(nameof(assembly));
 
 			const string TargetFrameworkAttributeName = "System.Runtime.Versioning.TargetFrameworkAttribute";
 
-			foreach (var attribute in assembly.CustomAttributes) {
+			foreach (var attribute in assembly.CustomAttributes)
+			{
 				if (attribute.AttributeType.FullName != TargetFrameworkAttributeName)
 					continue;
-				if (attribute.HasConstructorArguments) {
+				if (attribute.HasConstructorArguments)
+				{
 					if (attribute.ConstructorArguments[0].Value is string value)
 						return value;
 				}
 			}
 
 			// Optionally try to detect target version through assembly path as a fallback (use case: reference assemblies)
-			if (assemblyPath != null) {
+			if (assemblyPath != null)
+			{
 				/*
 				 * Detected path patterns (examples):
 				 * 
@@ -68,15 +71,21 @@ namespace ICSharpCode.ILSpy.AddIn
 				 */
 				var pathMatch = Regex.Match(assemblyPath, DetectTargetFrameworkIdRefPathPattern,
 					RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-				if (pathMatch.Success) {
+				if (pathMatch.Success)
+				{
 					var type = pathMatch.Groups[1].Value;
 					var version = pathMatch.Groups[2].Value;
 
-					if (type == ".NETFramework") {
+					if (type == ".NETFramework")
+					{
 						return $".NETFramework,Version=v{version}";
-					} else if (type.ToLower().Contains("netcore")) {
+					}
+					else if (type.ToLower().Contains("netcore"))
+					{
 						return $".NETCoreApp,Version=v{version}";
-					} else if (type.ToLower().Contains("netstandard")) {
+					}
+					else if (type.ToLower().Contains("netstandard"))
+					{
 						return $".NETStandard,Version=v{version}";
 					}
 				}

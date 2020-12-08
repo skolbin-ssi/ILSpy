@@ -3,8 +3,8 @@
 $baseCommit = "d779383cb85003d6dabeb976f0845631e07bf463";
 $baseCommitRev = 1;
 
-# make sure this list matches artifacts-only branches list in appveyor.yml!
-$masterBranches = @("master", "5.0.x");
+# make sure this matches artifacts-only branches list in appveyor.yml!
+$masterBranches = '^(master|release/.+)$';
 
 $globalAssemblyInfoTemplateFile = "ILSpy/Properties/AssemblyInfo.template.cs";
 
@@ -53,7 +53,7 @@ function gitCommitHash() {
     if (No-Git) {
         return "0000000000000000000000000000000000000000";
     }
-    return (git rev-list "$baseCommit..HEAD") | Select -First 1;
+    return (git rev-list --max-count 1 HEAD);
 }
 
 function gitBranch() {
@@ -112,7 +112,7 @@ try {
     $branchName = gitBranch;
     $gitCommitHash = gitCommitHash;
 
-    if ($masterBranches -contains $branchName) {
+    if ($branchName -match $masterBranches) {
         $postfixBranchName = "";
     } else {
         $postfixBranchName = "-$branchName";
@@ -150,7 +150,7 @@ try {
         $out = $out.Replace('$INSERTVERSIONNAMEPOSTFIX$', $postfixVersionName);
         $out = $out.Replace('$INSERTBUILDCONFIG$', $buildConfig);
 
-        if (((Get-Content $file.Input) -Join [System.Environment]::NewLine) -ne $out) {
+        if ((-not (Test-File $file.Output)) -or (((Get-Content $file.Output) -Join [System.Environment]::NewLine) -ne $out)) {
             $out | Out-File -Encoding utf8 $file.Output;
         }
     }
@@ -174,7 +174,7 @@ try {
 			$out = $out.Replace('$INSERTVERSIONNAMEPOSTFIX$', $postfixVersionName);
 			$out = $out.Replace('$INSERTBUILDCONFIG$', $buildConfig);
 
-			if (((Get-Content $file.Input) -Join [System.Environment]::NewLine) -ne $out) {
+			if ((-not (Test-File $file.Output)) -or (((Get-Content $file.Output) -Join [System.Environment]::NewLine) -ne $out)) {
 				$out | Out-File -Encoding utf8 $file.Output;
 			}
 		}
