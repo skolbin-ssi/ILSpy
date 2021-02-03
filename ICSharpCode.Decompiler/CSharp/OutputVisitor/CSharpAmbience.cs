@@ -80,6 +80,9 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 						case ClassType.Enum:
 							writer.WriteKeyword(Roles.EnumKeyword, "enum");
 							break;
+						case ClassType.RecordClass:
+							writer.WriteKeyword(Roles.RecordKeyword, "record");
+							break;
 						default:
 							throw new Exception("Invalid value for ClassType");
 					}
@@ -227,6 +230,8 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			astBuilder.AlwaysUseShortTypeNames = (ConversionFlags & ConversionFlags.UseFullyQualifiedTypeNames) != ConversionFlags.UseFullyQualifiedTypeNames;
 			astBuilder.ShowParameterNames = (ConversionFlags & ConversionFlags.ShowParameterNames) == ConversionFlags.ShowParameterNames;
 			astBuilder.UseNullableSpecifierForValueTypes = (ConversionFlags & ConversionFlags.UseNullableSpecifierForValueTypes) != 0;
+			astBuilder.SupportInitAccessors = (ConversionFlags & ConversionFlags.SupportInitAccessors) != 0;
+			astBuilder.SupportRecordClasses = (ConversionFlags & ConversionFlags.SupportRecordClasses) != 0;
 			return astBuilder;
 		}
 

@@ -54,30 +54,33 @@ public static class Program
 		[DebuggerNonUserCode]
 		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
 		[CompilerGenerated]
-		public int pc = pc;
+		public int pc;
 
 		[DebuggerNonUserCode]
 		[DebuggerBrowsable(DebuggerBrowsableState.Never)]
 		[CompilerGenerated]
-		public int current = current;
+		public int current;
 
 		public getSeq_00405(int pc, int current)
 		{
+			this.pc = pc;
+			this.current = current;
+			base._002Ector();
 		}
 
 		public override int GenerateNext(ref IEnumerable<int> next)
 		{
 			switch (pc)
 			{
-			default:
-				pc = 1;
-				current = 1;
-				return 1;
-			case 1:
-				pc = 2;
-				break;
-			case 2:
-				break;
+				default:
+					pc = 1;
+					current = 1;
+					return 1;
+				case 1:
+					pc = 2;
+					break;
+				case 2:
+					break;
 			}
 			current = 0;
 			return 0;
@@ -92,11 +95,11 @@ public static class Program
 		{
 			switch (pc)
 			{
-			default:
-				return false;
-			case 0:
-			case 2:
-				return false;
+				default:
+					return false;
+				case 0:
+				case 2:
+					return false;
 			}
 		}
 
@@ -132,9 +135,7 @@ public static class Program
 
 	public static int[] getArray()
 	{
-		return new int[1] {
-			1
-		};
+		return new int[1] { 1 };
 	}
 
 	[EntryPoint]
@@ -160,9 +161,7 @@ public static class Program
 				Console.WriteLine(headOrDefault);
 				fSharpList = tailOrNull;
 			}
-			int[] array = new int[1] {
-				1
-			};
+			int[] array = new int[1] { 1 };
 			for (int headOrDefault = 0; headOrDefault < array.Length; headOrDefault++)
 			{
 				Console.WriteLine(array[headOrDefault]);

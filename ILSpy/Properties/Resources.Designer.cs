@@ -1065,6 +1065,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Records.
+        /// </summary>
+        public static string DecompilerSettings_RecordClasses {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.RecordClasses", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Remove dead and side effect free code (use with caution!).
         /// </summary>
         public static string DecompilerSettings_RemoveDeadAndSideEffectFreeCodeUseWithCaution {
@@ -1254,6 +1263,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Use primary constructor  syntax with records.
+        /// </summary>
+        public static string DecompilerSettings_UsePrimaryConstructorSyntax {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UsePrimaryConstructorSyntax", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Use ref locals to accurately represent order of evaluation.
         /// </summary>
         public static string DecompilerSettings_UseRefLocalsForAccurateOrderOfEvaluation {
@@ -1322,6 +1340,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_VBSpecificOptions {
             get {
                 return ResourceManager.GetString("DecompilerSettings.VBSpecificOptions", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &apos;with&apos; initializer expressions.
+        /// </summary>
+        public static string DecompilerSettings_WithExpressions {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.WithExpressions", resourceCulture);
             }
         }
         
@@ -1558,7 +1585,7 @@ namespace ICSharpCode.ILSpy.Properties {
                 return ResourceManager.GetString("HighlightCurrentLine", resourceCulture);
             }
         }
-
+        
         /// <summary>
         ///   Looks up a localized string similar to Highlight matching braces.
         /// </summary>

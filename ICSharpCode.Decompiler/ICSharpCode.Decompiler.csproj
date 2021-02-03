@@ -7,14 +7,14 @@
     <Description>IL decompiler engine</Description>
     <Company>ic#code</Company>
     <Product>ILSpy</Product>
-    <Copyright>Copyright 2011-2020 AlphaSierraPapa for the SharpDevelop Team</Copyright>
+    <Copyright>Copyright 2011-2021 AlphaSierraPapa for the SharpDevelop Team</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
     <GenerateAssemblyVersionAttribute>False</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>False</GenerateAssemblyFileVersionAttribute>
     <GenerateAssemblyInformationalVersionAttribute>False</GenerateAssemblyInformationalVersionAttribute>
 
     <EnableDefaultItems>false</EnableDefaultItems>
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>9.0</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>ICSharpCode.Decompiler.snk</AssemblyOriginatorKeyFile>
@@ -66,13 +66,16 @@
     <Compile Include="CSharp\ProjectDecompiler\IProjectInfoProvider.cs" />
     <Compile Include="CSharp\ProjectDecompiler\ProjectFileWriterSdkStyle.cs" />
     <Compile Include="CSharp\ProjectDecompiler\ProjectFileWriterDefault.cs" />
+    <Compile Include="CSharp\RecordDecompiler.cs" />
     <Compile Include="CSharp\RequiredNamespaceCollector.cs" />
     <Compile Include="CSharp\SequencePointBuilder.cs" />
     <Compile Include="CSharp\ProjectDecompiler\TargetFramework.cs" />
     <Compile Include="CSharp\ProjectDecompiler\TargetServices.cs" />
     <Compile Include="CSharp\Syntax\Expressions\DeclarationExpression.cs" />
     <Compile Include="CSharp\Syntax\Expressions\SwitchExpression.cs" />
+    <Compile Include="CSharp\Syntax\Expressions\WithInitializerExpression.cs" />
     <Compile Include="CSharp\Syntax\FunctionPointerAstType.cs" />
+    <Compile Include="CSharp\Syntax\InvocationAstType.cs" />
     <Compile Include="CSharp\Syntax\VariableDesignation.cs" />
     <Compile Include="Humanizer\Vocabularies.cs" />
     <Compile Include="Humanizer\Vocabulary.cs" />

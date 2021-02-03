@@ -248,12 +248,33 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 		/// </summary>
 		protected virtual void Semicolon()
 		{
-			Role role = containerStack.Peek().Role;
 			// get the role of the current node
-			if (!(role == ForStatement.InitializerRole || role == ForStatement.IteratorRole || role == UsingStatement.ResourceAcquisitionRole))
+			Role role = containerStack.Peek().Role;
+			if (!SkipToken())
 			{
 				WriteToken(Roles.Semicolon);
-				NewLine();
+				if (!SkipNewLine())
+					NewLine();
+				else
+					Space();
+			}
+
+			bool SkipToken()
+			{
+				return role == ForStatement.InitializerRole
+					|| role == ForStatement.IteratorRole
+					|| role == UsingStatement.ResourceAcquisitionRole;
+			}
+
+			bool SkipNewLine()
+			{
+				if (containerStack.Peek() is not Accessor accessor)
+					return false;
+				if (!(role == PropertyDeclaration.GetterRole || role == PropertyDeclaration.SetterRole))
+					return false;
+				bool isAutoProperty = accessor.Body.IsNull
+					&& policy.AutoPropertyFormatting == PropertyFormatting.SingleLine;
+				return isAutoProperty;
 			}
 		}
 
@@ -305,66 +326,68 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			return true;
 		}
 
-		protected virtual void OpenBrace(BraceStyle style)
+		protected virtual void OpenBrace(BraceStyle style, bool newLine = true)
 		{
 			switch (style)
 			{
-				case BraceStyle.DoNotChange:
 				case BraceStyle.EndOfLine:
 				case BraceStyle.BannerStyle:
 					if (!isAtStartOfLine)
 						Space();
-					writer.WriteToken(Roles.LBrace, "{");
+					WriteToken("{", Roles.LBrace);
 					break;
 				case BraceStyle.EndOfLineWithoutSpace:
-					writer.WriteToken(Roles.LBrace, "{");
+					WriteToken("{", Roles.LBrace);
 					break;
 				case BraceStyle.NextLine:
 					if (!isAtStartOfLine)
 						NewLine();
-					writer.WriteToken(Roles.LBrace, "{");
+					WriteToken("{", Roles.LBrace);
 					break;
 				case BraceStyle.NextLineShifted:
 					NewLine();
 					writer.Indent();
-					writer.WriteToken(Roles.LBrace, "{");
+					WriteToken("{", Roles.LBrace);
 					NewLine();
 					return;
 				case BraceStyle.NextLineShifted2:
 					NewLine();
 					writer.Indent();
-					writer.WriteToken(Roles.LBrace, "{");
+					WriteToken("{", Roles.LBrace);
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
-			writer.Indent();
-			NewLine();
+			if (newLine)
+			{
+				writer.Indent();
+				NewLine();
+			}
 		}
 
-		protected virtual void CloseBrace(BraceStyle style)
+		protected virtual void CloseBrace(BraceStyle style, bool unindent = true)
 		{
 			switch (style)
 			{
-				case BraceStyle.DoNotChange:
 				case BraceStyle.EndOfLine:
 				case BraceStyle.EndOfLineWithoutSpace:
 				case BraceStyle.NextLine:
-					writer.Unindent();
-					writer.WriteToken(Roles.RBrace, "}");
-					isAtStartOfLine = false;
+					if (unindent)
+						writer.Unindent();
+					WriteToken("}", Roles.RBrace);
 					break;
 				case BraceStyle.BannerStyle:
 				case BraceStyle.NextLineShifted:
-					writer.WriteToken(Roles.RBrace, "}");
-					isAtStartOfLine = false;
-					writer.Unindent();
+					WriteToken("}", Roles.RBrace);
+					if (unindent)
+						writer.Unindent();
 					break;
 				case BraceStyle.NextLineShifted2:
-					writer.Unindent();
-					writer.WriteToken(Roles.RBrace, "}");
-					isAtStartOfLine = false;
-					writer.Unindent();
+					if (unindent)
+						writer.Unindent();
+					WriteToken("}", Roles.RBrace);
+					if (unindent)
+						writer.Unindent();
 					break;
 				default:
 					throw new ArgumentOutOfRangeException();
@@ -519,7 +542,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			}
 		}
 
-		protected virtual void WriteMethodBody(BlockStatement body, BraceStyle style)
+		protected virtual void WriteMethodBody(BlockStatement body, BraceStyle style, bool newLine = true)
 		{
 			if (body.IsNull)
 			{
@@ -663,36 +686,70 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 
 		protected virtual void PrintInitializerElements(AstNodeCollection<Expression> elements)
 		{
-			BraceStyle style;
-			if (policy.ArrayInitializerWrapping == Wrapping.WrapAlways)
-			{
-				style = BraceStyle.NextLine;
-			}
-			else
-			{
-				style = BraceStyle.EndOfLine;
-			}
-			OpenBrace(style);
-			bool isFirst = true;
+			bool wrapAlways = policy.ArrayInitializerWrapping == Wrapping.WrapAlways
+				|| (elements.Count > 1 && elements.Any(e => !IsSimpleExpression(e)))
+				|| elements.Any(IsComplexExpression);
+			bool wrap = wrapAlways
+				|| elements.Count > 10;
+			OpenBrace(wrap ? policy.ArrayInitializerBraceStyle : BraceStyle.EndOfLine, newLine: wrap);
+			if (!wrap)
+				Space();
 			AstNode last = null;
-			foreach (AstNode node in elements)
+			foreach (var (idx, node) in elements.WithIndex())
 			{
-				if (isFirst)
-				{
-					isFirst = false;
-				}
-				else
+				if (idx > 0)
 				{
 					Comma(node, noSpaceAfterComma: true);
-					NewLine();
+					if (wrapAlways || idx % 10 == 0)
+						NewLine();
+					else
+						Space();
 				}
 				last = node;
 				node.AcceptVisitor(this);
 			}
 			if (last != null)
 				OptionalComma(last.NextSibling);
-			NewLine();
-			CloseBrace(style);
+			if (wrap)
+				NewLine();
+			else
+				Space();
+			CloseBrace(wrap ? policy.ArrayInitializerBraceStyle : BraceStyle.EndOfLine, unindent: wrap);
+
+			bool IsSimpleExpression(Expression ex)
+			{
+				switch (ex)
+				{
+					case NullReferenceExpression _:
+					case ThisReferenceExpression _:
+					case PrimitiveExpression _:
+					case IdentifierExpression _:
+					case MemberReferenceExpression
+					{
+						Target: ThisReferenceExpression
+							or IdentifierExpression
+							or BaseReferenceExpression
+					} _:
+						return true;
+					default:
+						return false;
+				}
+			}
+
+			bool IsComplexExpression(Expression ex)
+			{
+				switch (ex)
+				{
+					case AnonymousMethodExpression _:
+					case LambdaExpression _:
+					case AnonymousTypeCreateExpression _:
+					case ObjectCreateExpression _:
+					case NamedExpression _:
+						return true;
+					default:
+						return false;
+				}
+			}
 		}
 
 		public virtual void VisitAsExpression(AsExpression asExpression)
@@ -1224,6 +1281,15 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			EndNode(uncheckedExpression);
 		}
 
+		public virtual void VisitWithInitializerExpression(WithInitializerExpression withInitializerExpression)
+		{
+			StartNode(withInitializerExpression);
+			withInitializerExpression.Expression.AcceptVisitor(this);
+			WriteKeyword("with", WithInitializerExpression.WithKeywordRole);
+			withInitializerExpression.Initializer.AcceptVisitor(this);
+			EndNode(withInitializerExpression);
+		}
+
 		#endregion
 
 		#region Query Expressions
@@ -1480,6 +1546,10 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 					WriteKeyword(Roles.StructKeyword);
 					braceStyle = policy.StructBraceStyle;
 					break;
+				case ClassType.RecordClass:
+					WriteKeyword(Roles.RecordKeyword);
+					braceStyle = policy.ClassBraceStyle;
+					break;
 				default:
 					WriteKeyword(Roles.ClassKeyword);
 					braceStyle = policy.ClassBraceStyle;
@@ -1487,6 +1557,11 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			}
 			WriteIdentifier(typeDeclaration.NameToken);
 			WriteTypeParameters(typeDeclaration.TypeParameters);
+			if (typeDeclaration.PrimaryConstructorParameters.Count > 0)
+			{
+				Space(policy.SpaceBeforeMethodDeclarationParentheses);
+				WriteCommaSeparatedListInParenthesis(typeDeclaration.PrimaryConstructorParameters, policy.SpaceWithinMethodDeclarationParentheses);
+			}
 			if (typeDeclaration.BaseTypes.Any())
 			{
 				Space();
@@ -1498,46 +1573,53 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			{
 				constraint.AcceptVisitor(this);
 			}
-			OpenBrace(braceStyle);
-			if (typeDeclaration.ClassType == ClassType.Enum)
+			if (typeDeclaration.ClassType == ClassType.RecordClass && typeDeclaration.Members.Count == 0)
 			{
-				bool first = true;
-				AstNode last = null;
-				foreach (var member in typeDeclaration.Members)
-				{
-					if (first)
-					{
-						first = false;
-					}
-					else
-					{
-						Comma(member, noSpaceAfterComma: true);
-						NewLine();
-					}
-					last = member;
-					member.AcceptVisitor(this);
-				}
-				if (last != null)
-					OptionalComma(last.NextSibling);
-				NewLine();
+				Semicolon();
 			}
 			else
 			{
-				bool first = true;
-				foreach (var member in typeDeclaration.Members)
+				OpenBrace(braceStyle);
+				if (typeDeclaration.ClassType == ClassType.Enum)
 				{
-					if (!first)
+					bool first = true;
+					AstNode last = null;
+					foreach (var member in typeDeclaration.Members)
 					{
-						for (int i = 0; i < policy.MinimumBlankLinesBetweenMembers; i++)
+						if (first)
+						{
+							first = false;
+						}
+						else
+						{
+							Comma(member, noSpaceAfterComma: true);
 							NewLine();
+						}
+						last = member;
+						member.AcceptVisitor(this);
 					}
-					first = false;
-					member.AcceptVisitor(this);
+					if (last != null)
+						OptionalComma(last.NextSibling);
+					NewLine();
 				}
+				else
+				{
+					bool first = true;
+					foreach (var member in typeDeclaration.Members)
+					{
+						if (!first)
+						{
+							for (int i = 0; i < policy.MinimumBlankLinesBetweenMembers; i++)
+								NewLine();
+						}
+						first = false;
+						member.AcceptVisitor(this);
+					}
+				}
+				CloseBrace(braceStyle);
+				OptionalSemicolon(typeDeclaration.LastChild);
+				NewLine();
 			}
-			CloseBrace(braceStyle);
-			OptionalSemicolon(typeDeclaration.LastChild);
-			NewLine();
 			EndNode(typeDeclaration);
 		}
 
@@ -2349,7 +2431,13 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 
 			if (indexerDeclaration.ExpressionBody.IsNull)
 			{
-				OpenBrace(policy.PropertyBraceStyle);
+				bool isSingleLine =
+					(policy.AutoPropertyFormatting == PropertyFormatting.SingleLine)
+					&& (indexerDeclaration.Getter.IsNull || indexerDeclaration.Getter.Body.IsNull)
+					&& (indexerDeclaration.Setter.IsNull || indexerDeclaration.Setter.Body.IsNull);
+				OpenBrace(isSingleLine ? BraceStyle.EndOfLine : policy.PropertyBraceStyle, newLine: !isSingleLine);
+				if (isSingleLine)
+					Space();
 				// output get/set in their original order
 				foreach (AstNode node in indexerDeclaration.Children)
 				{
@@ -2358,7 +2446,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 						node.AcceptVisitor(this);
 					}
 				}
-				CloseBrace(policy.PropertyBraceStyle);
+				CloseBrace(isSingleLine ? BraceStyle.EndOfLine : policy.PropertyBraceStyle, unindent: !isSingleLine);
 				NewLine();
 			}
 			else
@@ -2484,7 +2572,13 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 			WriteIdentifier(propertyDeclaration.NameToken);
 			if (propertyDeclaration.ExpressionBody.IsNull)
 			{
-				OpenBrace(policy.PropertyBraceStyle);
+				bool isSingleLine =
+					(policy.AutoPropertyFormatting == PropertyFormatting.SingleLine)
+					&& (propertyDeclaration.Getter.IsNull || propertyDeclaration.Getter.Body.IsNull)
+					&& (propertyDeclaration.Setter.IsNull || propertyDeclaration.Setter.Body.IsNull);
+				OpenBrace(isSingleLine ? BraceStyle.EndOfLine : policy.PropertyBraceStyle, newLine: !isSingleLine);
+				if (isSingleLine)
+					Space();
 				// output get/set in their original order
 				foreach (AstNode node in propertyDeclaration.Children)
 				{
@@ -2493,7 +2587,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 						node.AcceptVisitor(this);
 					}
 				}
-				CloseBrace(policy.PropertyBraceStyle);
+				CloseBrace(isSingleLine ? BraceStyle.EndOfLine : policy.PropertyBraceStyle, unindent: !isSingleLine);
 				if (!propertyDeclaration.Initializer.IsNull)
 				{
 					Space(policy.SpaceAroundAssignment);
@@ -2621,6 +2715,16 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 				functionPointerType.Parameters.Concat<AstNode>(new[] { functionPointerType.ReturnType }));
 			WriteToken(Roles.RChevron);
 			EndNode(functionPointerType);
+		}
+
+		public virtual void VisitInvocationType(InvocationAstType invocationType)
+		{
+			StartNode(invocationType);
+			invocationType.BaseType.AcceptVisitor(this);
+			WriteToken(Roles.LPar);
+			WriteCommaSeparatedList(invocationType.Arguments);
+			WriteToken(Roles.RPar);
+			EndNode(invocationType);
 		}
 
 		public virtual void VisitComposedType(ComposedType composedType)

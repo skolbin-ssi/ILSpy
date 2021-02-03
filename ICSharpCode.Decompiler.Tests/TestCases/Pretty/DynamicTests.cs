@@ -34,10 +34,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			}
 #endif
 
-			public dynamic Property {
-				get;
-				set;
-			}
+			public dynamic Property { get; set; }
 
 			public void Method(dynamic a)
 			{
@@ -47,10 +44,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 
 		private static dynamic field;
 		private static object objectField;
-		public dynamic Property {
-			get;
-			set;
-		}
+		public dynamic Property { get; set; }
 
 		public DynamicTests()
 		{
@@ -176,6 +170,16 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			field.Call("Hello World");
 			field.Call((object)"Hello World");
 			field.Call((dynamic)"Hello World");
+		}
+
+		private void StaticCallWithDynamicArgument(dynamic d)
+		{
+			M3(d + 5);
+		}
+
+		private static void StaticCallWithDynamicArgumentInStaticContext(dynamic d)
+		{
+			DynamicTests.M3(d + 5);
 		}
 
 		private static void DynamicCallWithString()

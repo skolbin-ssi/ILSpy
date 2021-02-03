@@ -117,6 +117,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 			VisitChildren(functionPointerType);
 		}
 
+		public virtual void VisitInvocationType(InvocationAstType invocationType)
+		{
+			VisitChildren(invocationType);
+		}
+
 		public virtual void VisitAttribute(Attribute attribute)
 		{
 			VisitChildren(attribute);
@@ -691,6 +696,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		{
 			VisitChildren(placeholder);
 		}
+
+		public virtual void VisitWithInitializerExpression(WithInitializerExpression withInitializerExpression)
+		{
+			VisitChildren(withInitializerExpression);
+		}
 	}
 
 	/// <summary>
@@ -783,6 +793,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual T VisitFunctionPointerType(FunctionPointerAstType functionPointerType)
 		{
 			return VisitChildren(functionPointerType);
+		}
+
+		public virtual T VisitInvocationType(InvocationAstType invocationType)
+		{
+			return VisitChildren(invocationType);
 		}
 
 		public virtual T VisitAttribute(Attribute attribute)
@@ -1359,6 +1374,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		{
 			return VisitChildren(placeholder);
 		}
+
+		public virtual T VisitWithInitializerExpression(WithInitializerExpression withInitializerExpression)
+		{
+			return VisitChildren(withInitializerExpression);
+		}
 	}
 
 	/// <summary>
@@ -1451,6 +1471,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual S VisitFunctionPointerType(FunctionPointerAstType functionPointerType, T data)
 		{
 			return VisitChildren(functionPointerType, data);
+		}
+
+		public virtual S VisitInvocationType(InvocationAstType invocationType, T data)
+		{
+			return VisitChildren(invocationType, data);
 		}
 
 		public virtual S VisitAttribute(Attribute attribute, T data)
@@ -2026,6 +2051,11 @@ namespace ICSharpCode.Decompiler.CSharp.Syntax
 		public virtual S VisitPatternPlaceholder(AstNode placeholder, PatternMatching.Pattern pattern, T data)
 		{
 			return VisitChildren(placeholder, data);
+		}
+
+		public virtual S VisitWithInitializerExpression(WithInitializerExpression withInitializerExpression, T data)
+		{
+			return VisitChildren(withInitializerExpression, data);
 		}
 	}
 }

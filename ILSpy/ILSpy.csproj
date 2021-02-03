@@ -69,7 +69,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
-    <PackageReference Include="Microsoft.DiaSymReader.Converter.Xml" Version="1.1.0-beta1-63314-01" />
+    <PackageReference Include="Microsoft.DiaSymReader.Converter.Xml" Version="$(DSRConverterXmlVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -120,6 +120,7 @@
     <Compile Include="Commands\DisassembleAllCommand.cs" />
     <Compile Include="Commands\ExitCommand.cs" />
     <Compile Include="Commands\CommandWrapper.cs" />
+    <Compile Include="Metadata\DebugDirectoryTreeNode.cs" />
     <Compile Include="Metadata\GoToTokenCommand.cs" />
     <Compile Include="Commands\ILSpyCommands.cs" />
     <Compile Include="Commands\IProtocolHandler.cs" />
@@ -465,7 +466,7 @@
       <Generator>PublicResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.zh-Hans.resx" />
+    <EmbeddedResource Condition=" '$(COMPUTERNAME)' != 'DANIEL-E590' " Include="Properties\Resources.zh-Hans.resx" />
     <Resource Include="Images\ILSpy.ico" />
     <EmbeddedResource Include="TextView\CSharp-Mode.xshd" />
     <EmbeddedResource Include="TextView\ILAsm-Mode.xshd" />
