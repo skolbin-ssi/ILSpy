@@ -29,12 +29,13 @@ using System.Threading.Tasks;
 using System.Windows.Navigation;
 using System.Windows.Threading;
 
+using AvalonDock;
+using AvalonDock.Layout;
+using AvalonDock.Layout.Serialization;
+
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.ViewModels;
-
-using Xceed.Wpf.AvalonDock.Layout;
-using Xceed.Wpf.AvalonDock.Layout.Serialization;
 
 namespace ICSharpCode.ILSpy.Docking
 {
@@ -99,9 +100,14 @@ namespace ICSharpCode.ILSpy.Docking
 					if (state != null)
 					{
 						if (state.DecompiledNodes != null)
-							MainWindow.Instance.SelectNodes(state.DecompiledNodes);
+						{
+							MainWindow.Instance.SelectNodes(state.DecompiledNodes,
+								inNewTabPage: false, setFocus: true, changingActiveTab: true);
+						}
 						else
+						{
 							MainWindow.Instance.NavigateTo(new RequestNavigateEventArgs(state.ViewedUri, null));
+						}
 					}
 
 					RaisePropertyChanged(nameof(ActiveTabPage));
@@ -109,7 +115,7 @@ namespace ICSharpCode.ILSpy.Docking
 			}
 		}
 
-		public void InitializeLayout(Xceed.Wpf.AvalonDock.DockingManager manager)
+		public void InitializeLayout(DockingManager manager)
 		{
 			manager.LayoutUpdateStrategy = this;
 			XmlLayoutSerializer serializer = new XmlLayoutSerializer(manager);

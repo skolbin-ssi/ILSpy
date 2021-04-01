@@ -219,6 +219,9 @@ Are you sure you want to continue?</value>
   <data name="DEBUGDumpPDBAsXML" xml:space="preserve">
     <value>DEBUG -- Dump PDB as XML</value>
   </data>
+  <data name="DarkMode" xml:space="preserve">
+    <value>Dark Mode</value>
+  </data>
   <data name="DebugSteps" xml:space="preserve">
     <value>Debug Steps</value>
   </data>
@@ -338,6 +341,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.FunctionPointers" xml:space="preserve">
     <value>Function pointers</value>
+  </data>
+  <data name="DecompilerSettings.GetterOnlyAutomaticProperties" xml:space="preserve">
+    <value>Decompile getter-only automatic properties</value>
   </data>
   <data name="DecompilerSettings.IncludeXMLDocumentationCommentsInTheDecompiledCode" xml:space="preserve">
     <value>Include XML documentation comments in the decompiled code</value>
@@ -553,7 +559,7 @@ Are you sure you want to continue?</value>
     <value>Hide empty metadata tables from tree view</value>
   </data>
   <data name="HighlightCurrentLine" xml:space="preserve">
-    <value>Hightlight current line</value>
+    <value>Highlight current line</value>
   </data>
   <data name="HighlightMatchingBraces" xml:space="preserve">
     <value>Highlight matching braces</value>
@@ -602,6 +608,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="Misc" xml:space="preserve">
     <value>Misc</value>
+  </data>
+  <data name="NETFrameworkVersion" xml:space="preserve">
+    <value>.NET version </value>
   </data>
   <data name="Name" xml:space="preserve">
     <value>Name</value>

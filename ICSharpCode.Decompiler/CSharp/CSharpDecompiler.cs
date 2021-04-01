@@ -23,6 +23,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 using ICSharpCode.Decompiler.CSharp.OutputVisitor;
@@ -329,8 +330,29 @@ namespace ICSharpCode.Decompiler.CSharp
 					{
 						if (settings.AnonymousMethods && IsAnonymousMethodCacheField(field, metadata))
 							return true;
-						if (settings.AutomaticProperties && IsAutomaticPropertyBackingField(field, metadata))
+						if (settings.AutomaticProperties && IsAutomaticPropertyBackingField(field, metadata, out var propertyName))
+						{
+							if (!settings.GetterOnlyAutomaticProperties && IsGetterOnlyProperty(propertyName))
+								return false;
+
+							bool IsGetterOnlyProperty(string propertyName)
+							{
+								var properties = metadata.GetTypeDefinition(field.GetDeclaringType()).GetProperties();
+								foreach (var p in properties)
+								{
+									var pd = metadata.GetPropertyDefinition(p);
+									string name = metadata.GetString(pd.Name);
+									if (!metadata.StringComparer.Equals(pd.Name, propertyName))
+										continue;
+									PropertyAccessors accessors = pd.GetAccessors();
+									return !accessors.Getter.IsNil && accessors.Setter.IsNil;
+								}
+								return false;
+							}
+
 							return true;
+						}
+
 						if (settings.SwitchStatementOnString && IsSwitchOnStringCache(field, metadata))
 							return true;
 					}
@@ -359,10 +381,20 @@ namespace ICSharpCode.Decompiler.CSharp
 			return metadata.GetString(field.Name).StartsWith("<>f__switch", StringComparison.Ordinal);
 		}
 
-		static bool IsAutomaticPropertyBackingField(SRM.FieldDefinition field, MetadataReader metadata)
+		static readonly Regex automaticPropertyBackingFieldRegex = new Regex(@"^<(.*)>k__BackingField$",
+			RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
+		static bool IsAutomaticPropertyBackingField(SRM.FieldDefinition field, MetadataReader metadata, out string propertyName)
 		{
+			propertyName = null;
 			var name = metadata.GetString(field.Name);
-			return name.StartsWith("<", StringComparison.Ordinal) && name.EndsWith("BackingField", StringComparison.Ordinal);
+			var m = automaticPropertyBackingFieldRegex.Match(name);
+			if (m.Success)
+			{
+				propertyName = m.Groups[1].Value;
+				return true;
+			}
+			return false;
 		}
 
 		static bool IsAnonymousMethodCacheField(SRM.FieldDefinition field, MetadataReader metadata)
@@ -388,7 +420,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			return new PEFile(
 				fileName,
 				new FileStream(fileName, FileMode.Open, FileAccess.Read),
-				streamOptions: settings.LoadInMemory ? PEStreamOptions.PrefetchEntireImage : PEStreamOptions.Default,
+				streamOptions: PEStreamOptions.PrefetchEntireImage,
 				metadataOptions: settings.ApplyWindowsRuntimeProjections ? MetadataReaderOptions.ApplyWindowsRuntimeProjections : MetadataReaderOptions.None
 			);
 		}
@@ -398,7 +430,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			settings.LoadInMemory = true;
 			var file = LoadPEFile(fileName, settings);
 			var resolver = new UniversalAssemblyResolver(fileName, settings.ThrowOnAssemblyResolveErrors,
-				file.DetectTargetFrameworkId(),
+				file.DetectTargetFrameworkId(), file.DetectRuntimePack(),
 				settings.LoadInMemory ? PEStreamOptions.PrefetchMetadata : PEStreamOptions.Default,
 				settings.ApplyWindowsRuntimeProjections ? MetadataReaderOptions.ApplyWindowsRuntimeProjections : MetadataReaderOptions.None);
 			return new DecompilerTypeSystem(file, resolver);
@@ -1441,15 +1473,7 @@ namespace ICSharpCode.Decompiler.CSharp
 
 				if (entityDecl != null)
 				{
-					int i = 0;
-					var parameters = function.Variables.Where(v => v.Kind == VariableKind.Parameter).ToDictionary(v => v.Index);
-					foreach (var parameter in entityDecl.GetChildrenByRole(Roles.Parameter))
-					{
-						if (parameters.TryGetValue(i, out var v))
-							parameter.AddAnnotation(new ILVariableResolveResult(v, method.Parameters[i].Type));
-						i++;
-					}
-					entityDecl.AddAnnotation(function);
+					AddAnnotationsToDeclaration(method, entityDecl, function);
 				}
 
 				var localSettings = settings.Clone();
@@ -1507,6 +1531,19 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				throw new DecompilerException(module, method, innerException);
 			}
+		}
+
+		internal static void AddAnnotationsToDeclaration(IMethod method, EntityDeclaration entityDecl, ILFunction function)
+		{
+			int i = 0;
+			var parameters = function.Variables.Where(v => v.Kind == VariableKind.Parameter).ToDictionary(v => v.Index);
+			foreach (var parameter in entityDecl.GetChildrenByRole(Roles.Parameter))
+			{
+				if (parameters.TryGetValue(i, out var v))
+					parameter.AddAnnotation(new ILVariableResolveResult(v, method.Parameters[i].Type));
+				i++;
+			}
+			entityDecl.AddAnnotation(function);
 		}
 
 		internal static void CleanUpMethodDeclaration(EntityDeclaration entityDecl, BlockStatement body, ILFunction function, bool decompileBody = true)

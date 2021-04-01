@@ -541,6 +541,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Dark Mode.
+        /// </summary>
+        public static string DarkMode {
+            get {
+                return ResourceManager.GetString("DarkMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DEBUG -- Decompile All.
         /// </summary>
         public static string DEBUGDecompile {
@@ -924,6 +933,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_FunctionPointers {
             get {
                 return ResourceManager.GetString("DecompilerSettings.FunctionPointers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Decompile getter-only automatic properties.
+        /// </summary>
+        public static string DecompilerSettings_GetterOnlyAutomaticProperties {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.GetterOnlyAutomaticProperties", resourceCulture);
             }
         }
         
@@ -1578,7 +1596,7 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Hightlight current line.
+        ///   Looks up a localized string similar to Highlight current line.
         /// </summary>
         public static string HighlightCurrentLine {
             get {
@@ -1755,6 +1773,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string NavigationFailed {
             get {
                 return ResourceManager.GetString("NavigationFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to .NET version .
+        /// </summary>
+        public static string NETFrameworkVersion {
+            get {
+                return ResourceManager.GetString("NETFrameworkVersion", resourceCulture);
             }
         }
         

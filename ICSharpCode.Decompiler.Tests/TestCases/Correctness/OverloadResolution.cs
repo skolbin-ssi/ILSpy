@@ -35,6 +35,7 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Correctness
 			Issue1281();
 			Issue1747();
 			CallAmbiguousOutParam();
+			CallWithInParam();
 		}
 
 		#region ConstructorTest
@@ -269,6 +270,69 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Correctness
 			AmbiguousOutParam(out a);
 			AmbiguousOutParam(out b);
 		}
+		#endregion
+
+		#region In Parameter
+		static void CallWithInParam()
+		{
+#if CS72
+			Console.WriteLine("OverloadSetWithInParam:");
+			OverloadSetWithInParam(1);
+			OverloadSetWithInParam(2L);
+			int i = 3;
+			OverloadSetWithInParam(in i);
+			OverloadSetWithInParam((long)4);
+
+			Console.WriteLine("OverloadSetWithInParam2:");
+			OverloadSetWithInParam2(1);
+			OverloadSetWithInParam2((object)1);
+
+			Console.WriteLine("OverloadSetWithInParam3:");
+			OverloadSetWithInParam3(1);
+			OverloadSetWithInParam3<int>(2);
+			OverloadSetWithInParam3((object)3);
+
+			Console.WriteLine("InVsRegularParam:");
+			InVsRegularParam(1);
+			i = 2;
+			InVsRegularParam(in i);
+#endif
+		}
+
+#if CS72
+		static void OverloadSetWithInParam(in int i)
+		{
+			Console.WriteLine("in int " + i);
+		}
+		static void OverloadSetWithInParam(long l)
+		{
+			Console.WriteLine("long " + l);
+		}
+		static void OverloadSetWithInParam2(in long i)
+		{
+			Console.WriteLine("in long " + i);
+		}
+		static void OverloadSetWithInParam2(object o)
+		{
+			Console.WriteLine("object " + o);
+		}
+		static void OverloadSetWithInParam3(in int i)
+		{
+			Console.WriteLine("in int " + i);
+		}
+		static void OverloadSetWithInParam3<T>(T a)
+		{
+			Console.WriteLine("T " + a);
+		}
+		static void InVsRegularParam(in int i)
+		{
+			Console.WriteLine("in int " + i);
+		}
+		static void InVsRegularParam(int i)
+		{
+			Console.WriteLine("int " + i);
+		}
+#endif
 		#endregion
 	}
 

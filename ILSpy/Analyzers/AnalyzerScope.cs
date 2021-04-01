@@ -23,11 +23,12 @@ using System.Threading;
 
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
-using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
 
 namespace ICSharpCode.ILSpy.Analyzers
 {
+	using ICSharpCode.Decompiler.TypeSystem;
+
 	public class AnalyzerScope
 	{
 		readonly ITypeDefinition typeScope;
@@ -75,13 +76,8 @@ namespace ICSharpCode.ILSpy.Analyzers
 
 		public IEnumerable<PEFile> GetAllModules()
 		{
-			foreach (var module in AssemblyList.GetAssemblies())
-			{
-				var file = module.GetPEFileOrNull();
-				if (file == null)
-					continue;
-				yield return file;
-			}
+			return AssemblyList.GetAllAssemblies().GetAwaiter().GetResult()
+				.Select(asm => asm.GetPEFileOrNull());
 		}
 
 		public IEnumerable<ITypeDefinition> GetTypesInScope(CancellationToken ct)
@@ -138,7 +134,7 @@ namespace ICSharpCode.ILSpy.Analyzers
 			do
 			{
 				PEFile curFile = toWalkFiles.Pop();
-				foreach (var assembly in AssemblyList.GetAssemblies())
+				foreach (var assembly in AssemblyList.GetAllAssemblies().GetAwaiter().GetResult())
 				{
 					ct.ThrowIfCancellationRequested();
 					bool found = false;
@@ -147,16 +143,13 @@ namespace ICSharpCode.ILSpy.Analyzers
 						continue;
 					if (checkedFiles.Contains(module))
 						continue;
-					var resolver = assembly.GetAssemblyResolver();
+					var resolver = assembly.GetAssemblyResolver(loadOnDemand: false);
 					foreach (var reference in module.AssemblyReferences)
 					{
-						using (LoadedAssembly.DisableAssemblyLoad(AssemblyList))
+						if (resolver.Resolve(reference) == curFile)
 						{
-							if (resolver.Resolve(reference) == curFile)
-							{
-								found = true;
-								break;
-							}
+							found = true;
+							break;
 						}
 					}
 					if (found && checkedFiles.Add(module))
@@ -189,7 +182,8 @@ namespace ICSharpCode.ILSpy.Analyzers
 
 			if (friendAssemblies.Count > 0)
 			{
-				IEnumerable<LoadedAssembly> assemblies = AssemblyList.GetAssemblies();
+				IEnumerable<LoadedAssembly> assemblies = AssemblyList.GetAllAssemblies()
+					.GetAwaiter().GetResult();
 
 				foreach (var assembly in assemblies)
 				{

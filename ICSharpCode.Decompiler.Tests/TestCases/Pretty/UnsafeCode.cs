@@ -530,6 +530,18 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			num.ToString();
 		}
 
+#if CS73
+		private unsafe static int Issue2287(ref StructWithFixedSizeMembers value)
+		{
+			return value.Integers[0] + value.Integers[1];
+		}
+#endif
+
+		private unsafe static int Issue2305(StructWithFixedSizeMembers value, StringComparison s)
+		{
+			return value.Integers[(int)s];
+		}
+
 		private unsafe static void* CastToVoidPtr(IntPtr intptr)
 		{
 			return (void*)intptr;
