@@ -20,6 +20,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 {
@@ -614,6 +615,18 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 			}
 		}
 
+		private static void AppendNamePart(string part, StringBuilder name)
+		{
+			foreach (char c in part)
+			{
+				if (c == '\\')
+				{
+					name.Append('\\');
+				}
+				name.Append(c);
+			}
+		}
+
 		public void NoForeachOverArray(string[] array)
 		{
 			for (int i = 0; i < array.Length; i++)
@@ -995,6 +1008,27 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 				Console.WriteLine(i);
 			}
 			Console.WriteLine("end");
+		}
+
+		public void ForEachInSwitch(int i, IEnumerable<string> args)
+		{
+			switch (i)
+			{
+
+				case 1:
+					Console.WriteLine("one");
+					break;
+				case 2:
+				{
+					foreach (string arg in args)
+					{
+						Console.WriteLine(arg);
+					}
+					break;
+				}
+				default:
+					throw new NotImplementedException();
+			}
 		}
 	}
 }

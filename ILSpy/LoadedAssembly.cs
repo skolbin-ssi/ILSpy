@@ -473,12 +473,12 @@ namespace ICSharpCode.ILSpy
 					return module;
 				}
 
-				string file = parent.GetUniversalResolver().FindAssemblyFile(reference);
+				string? file = parent.GetUniversalResolver().FindAssemblyFile(reference);
 
 				if (file != null)
 				{
 					// Load assembly from disk
-					LoadedAssembly asm;
+					LoadedAssembly? asm;
 					if (loadOnDemand)
 					{
 						asm = assemblyList.OpenAssembly(file, isAutoLoaded: true);
@@ -576,7 +576,7 @@ namespace ICSharpCode.ILSpy
 				if (File.Exists(file))
 				{
 					// Load module from disk
-					LoadedAssembly asm;
+					LoadedAssembly? asm;
 					if (loadOnDemand)
 					{
 						asm = assemblyList.OpenAssembly(file, isAutoLoaded: true);

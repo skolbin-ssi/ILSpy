@@ -348,10 +348,9 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 			var itemVariable = m.Get<IdentifierExpression>("itemVariable").Single().GetILVariable();
 			var indexVariable = m.Get<IdentifierExpression>("indexVariable").Single().GetILVariable();
 			var arrayVariable = m.Get<IdentifierExpression>("arrayVariable").Single().GetILVariable();
-			var loopContainer = forStatement.Annotation<IL.BlockContainer>();
 			if (itemVariable == null || indexVariable == null || arrayVariable == null)
 				return null;
-			if (arrayVariable.Type.Kind != TypeKind.Array)
+			if (arrayVariable.Type.Kind != TypeKind.Array && !arrayVariable.Type.IsKnownType(KnownTypeCode.String))
 				return null;
 			if (!VariableCanBeUsedAsForeachLocal(itemVariable, forStatement))
 				return null;
@@ -593,15 +592,15 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 			}
 		};
 
-		bool CanTransformToAutomaticProperty(IProperty property)
+		bool CanTransformToAutomaticProperty(IProperty property, bool accessorsMustBeCompilerGenerated)
 		{
 			if (!property.CanGet)
 				return false;
-			if (!property.Getter.IsCompilerGenerated())
+			if (accessorsMustBeCompilerGenerated && !property.Getter.IsCompilerGenerated())
 				return false;
 			if (property.Setter is IMethod setter)
 			{
-				if (!setter.IsCompilerGenerated())
+				if (accessorsMustBeCompilerGenerated && !setter.IsCompilerGenerated())
 					return false;
 				if (setter.HasReadonlyModifier())
 					return false;
@@ -612,7 +611,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 		PropertyDeclaration TransformAutomaticProperty(PropertyDeclaration propertyDeclaration)
 		{
 			IProperty property = propertyDeclaration.GetSymbol() as IProperty;
-			if (!CanTransformToAutomaticProperty(property))
+			if (!CanTransformToAutomaticProperty(property, !property.DeclaringTypeDefinition.Fields.Any(f => f.Name == "_" + property.Name && f.IsCompilerGenerated())))
 				return null;
 			IField field = null;
 			Match m = automaticPropertyPattern.Match(propertyDeclaration);
@@ -630,7 +629,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 			}
 			if (field == null || !NameCouldBeBackingFieldOfAutomaticProperty(field.Name, out _))
 				return null;
-			if (propertyDeclaration.Setter.HasModifier(Modifiers.Readonly))
+			if (propertyDeclaration.Setter.HasModifier(Modifiers.Readonly) || (propertyDeclaration.HasModifier(Modifiers.Readonly) && !propertyDeclaration.Setter.IsNull))
 				return null;
 			if (field.IsCompilerGenerated() && field.DeclaringTypeDefinition == property.DeclaringTypeDefinition)
 			{
@@ -638,6 +637,7 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 				RemoveCompilerGeneratedAttribute(propertyDeclaration.Setter.Attributes);
 				propertyDeclaration.Getter.Body = null;
 				propertyDeclaration.Setter.Body = null;
+				propertyDeclaration.Modifiers &= ~Modifiers.Readonly;
 				propertyDeclaration.Getter.Modifiers &= ~Modifiers.Readonly;
 
 				// Add C# 7.3 attributes on backing field:
@@ -741,7 +741,8 @@ namespace ICSharpCode.Decompiler.CSharp.Transforms
 				var mrr = parent.Annotation<MemberResolveResult>();
 				var field = mrr?.Member as IField;
 				if (field != null && IsBackingFieldOfAutomaticProperty(field, out var property)
-					&& CanTransformToAutomaticProperty(property) && currentMethod.AccessorOwner != property)
+					&& CanTransformToAutomaticProperty(property, !(field.IsCompilerGenerated() && field.Name == "_" + property.Name))
+					&& currentMethod.AccessorOwner != property)
 				{
 					if (!property.CanSet && !context.Settings.GetterOnlyAutomaticProperties)
 						return null;
