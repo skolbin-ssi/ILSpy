@@ -89,6 +89,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				new SplitVariables(),
 				new ILInlining(),
 				new InlineReturnTransform(), // must run before DetectPinnedRegions
+				new RemoveInfeasiblePathTransform(),
 				new DetectPinnedRegions(), // must run after inlining but before non-critical control flow transforms
 				new YieldReturnDecompiler(), // must run after inlining but before loop detection
 				new AsyncAwaitDecompiler(),  // must run after inlining but before loop detection
@@ -96,10 +97,10 @@ namespace ICSharpCode.Decompiler.CSharp
 				new DetectExitPoints(),
 				new LdLocaDupInitObjTransform(),
 				new EarlyExpressionTransforms(),
+				new SplitVariables(), // split variables once again, because the stobj(ldloca V, ...) may open up new replacements
 				// RemoveDeadVariableInit must run after EarlyExpressionTransforms so that stobj(ldloca V, ...)
 				// is already collapsed into stloc(V, ...).
 				new RemoveDeadVariableInit(),
-				new SplitVariables(), // split variables once again, because the stobj(ldloca V, ...) may open up new replacements
 				new ControlFlowSimplification(), //split variables may enable new branch to leave inlining
 				new DynamicCallSiteTransform(),
 				new SwitchDetection(),
@@ -119,6 +120,7 @@ namespace ICSharpCode.Decompiler.CSharp
 				},
 				// re-run DetectExitPoints after loop detection
 				new DetectExitPoints(),
+				new PatternMatchingTransform(), // must run after LoopDetection and before ConditionDetection
 				new BlockILTransform { // per-block transforms
 					PostOrderTransforms = {
 						new ConditionDetection(),
@@ -1207,6 +1209,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		EntityDeclaration DoDecompile(ITypeDefinition typeDef, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
 		{
 			Debug.Assert(decompilationContext.CurrentTypeDefinition == typeDef);
+			var watch = System.Diagnostics.Stopwatch.StartNew();
 			try
 			{
 				var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
@@ -1225,7 +1228,31 @@ namespace ICSharpCode.Decompiler.CSharp
 				if (recordDecompiler?.PrimaryConstructor != null)
 				{
 					foreach (var p in recordDecompiler.PrimaryConstructor.Parameters)
-						typeDecl.PrimaryConstructorParameters.Add(typeSystemAstBuilder.ConvertParameter(p));
+					{
+						ParameterDeclaration pd = typeSystemAstBuilder.ConvertParameter(p);
+						(IProperty prop, IField field) = recordDecompiler.GetPropertyInfoByPrimaryConstructorParameter(p);
+						Syntax.Attribute[] attributes = prop.GetAttributes().Select(attr => typeSystemAstBuilder.ConvertAttribute(attr)).ToArray();
+						if (attributes.Length > 0)
+						{
+							var section = new AttributeSection {
+								AttributeTarget = "property"
+							};
+							section.Attributes.AddRange(attributes);
+							pd.Attributes.Add(section);
+						}
+						attributes = field.GetAttributes()
+							.Where(a => !PatternStatementTransform.attributeTypesToRemoveFromAutoProperties.Contains(a.AttributeType.FullName))
+							.Select(attr => typeSystemAstBuilder.ConvertAttribute(attr)).ToArray();
+						if (attributes.Length > 0)
+						{
+							var section = new AttributeSection {
+								AttributeTarget = "field"
+							};
+							section.Attributes.AddRange(attributes);
+							pd.Attributes.Add(section);
+						}
+						typeDecl.PrimaryConstructorParameters.Add(pd);
+					}
 				}
 
 				foreach (var type in typeDef.NestedTypes)
@@ -1335,6 +1362,11 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				throw new DecompilerException(module, typeDef, innerException);
 			}
+			finally
+			{
+				watch.Stop();
+				Instrumentation.DecompilerEventSource.Log.DoDecompileTypeDefinition(typeDef.FullName, watch.ElapsedMilliseconds);
+			}
 		}
 
 		enum EnumValueDisplayMode
@@ -1421,43 +1453,52 @@ namespace ICSharpCode.Decompiler.CSharp
 		EntityDeclaration DoDecompile(IMethod method, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
 		{
 			Debug.Assert(decompilationContext.CurrentMember == method);
-			var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
-			var methodDecl = typeSystemAstBuilder.ConvertEntity(method);
-			int lastDot = method.Name.LastIndexOf('.');
-			if (method.IsExplicitInterfaceImplementation && lastDot >= 0)
+			var watch = System.Diagnostics.Stopwatch.StartNew();
+			try
 			{
-				methodDecl.Name = method.Name.Substring(lastDot + 1);
+				var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
+				var methodDecl = typeSystemAstBuilder.ConvertEntity(method);
+				int lastDot = method.Name.LastIndexOf('.');
+				if (method.IsExplicitInterfaceImplementation && lastDot >= 0)
+				{
+					methodDecl.Name = method.Name.Substring(lastDot + 1);
+				}
+				FixParameterNames(methodDecl);
+				var methodDefinition = metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
+				if (!settings.LocalFunctions && LocalFunctionDecompiler.LocalFunctionNeedsAccessibilityChange(method.ParentModule.PEFile, (MethodDefinitionHandle)method.MetadataToken))
+				{
+					// if local functions are not active and we're dealing with a local function,
+					// reduce the visibility of the method to private,
+					// otherwise this leads to compile errors because the display classes have lesser accessibility.
+					// Note: removing and then adding the static modifier again is necessary to set the private modifier before all other modifiers.
+					methodDecl.Modifiers &= ~(Modifiers.Internal | Modifiers.Static);
+					methodDecl.Modifiers |= Modifiers.Private | (method.IsStatic ? Modifiers.Static : 0);
+				}
+				if (methodDefinition.HasBody())
+				{
+					DecompileBody(method, methodDecl, decompileRun, decompilationContext);
+				}
+				else if (!method.IsAbstract && method.DeclaringType.Kind != TypeKind.Interface)
+				{
+					methodDecl.Modifiers |= Modifiers.Extern;
+				}
+				if (method.SymbolKind == SymbolKind.Method && !method.IsExplicitInterfaceImplementation && methodDefinition.HasFlag(System.Reflection.MethodAttributes.Virtual) == methodDefinition.HasFlag(System.Reflection.MethodAttributes.NewSlot))
+				{
+					SetNewModifier(methodDecl);
+				}
+				if (IsCovariantReturnOverride(method))
+				{
+					RemoveAttribute(methodDecl, KnownAttribute.PreserveBaseOverrides);
+					methodDecl.Modifiers &= ~(Modifiers.New | Modifiers.Virtual);
+					methodDecl.Modifiers |= Modifiers.Override;
+				}
+				return methodDecl;
 			}
-			FixParameterNames(methodDecl);
-			var methodDefinition = metadata.GetMethodDefinition((MethodDefinitionHandle)method.MetadataToken);
-			if (!settings.LocalFunctions && LocalFunctionDecompiler.LocalFunctionNeedsAccessibilityChange(method.ParentModule.PEFile, (MethodDefinitionHandle)method.MetadataToken))
+			finally
 			{
-				// if local functions are not active and we're dealing with a local function,
-				// reduce the visibility of the method to private,
-				// otherwise this leads to compile errors because the display classes have lesser accessibility.
-				// Note: removing and then adding the static modifier again is necessary to set the private modifier before all other modifiers.
-				methodDecl.Modifiers &= ~(Modifiers.Internal | Modifiers.Static);
-				methodDecl.Modifiers |= Modifiers.Private | (method.IsStatic ? Modifiers.Static : 0);
+				watch.Stop();
+				Instrumentation.DecompilerEventSource.Log.DoDecompileMethod(method.FullName, watch.ElapsedMilliseconds);
 			}
-			if (methodDefinition.HasBody())
-			{
-				DecompileBody(method, methodDecl, decompileRun, decompilationContext);
-			}
-			else if (!method.IsAbstract && method.DeclaringType.Kind != TypeKind.Interface)
-			{
-				methodDecl.Modifiers |= Modifiers.Extern;
-			}
-			if (method.SymbolKind == SymbolKind.Method && !method.IsExplicitInterfaceImplementation && methodDefinition.HasFlag(System.Reflection.MethodAttributes.Virtual) == methodDefinition.HasFlag(System.Reflection.MethodAttributes.NewSlot))
-			{
-				SetNewModifier(methodDecl);
-			}
-			if (IsCovariantReturnOverride(method))
-			{
-				RemoveAttribute(methodDecl, KnownAttribute.PreserveBaseOverrides);
-				methodDecl.Modifiers &= ~(Modifiers.New | Modifiers.Virtual);
-				methodDecl.Modifiers |= Modifiers.Override;
-			}
-			return methodDecl;
 		}
 
 		private bool IsCovariantReturnOverride(IEntity entity)
@@ -1658,6 +1699,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		EntityDeclaration DoDecompile(IField field, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
 		{
 			Debug.Assert(decompilationContext.CurrentMember == field);
+			var watch = System.Diagnostics.Stopwatch.StartNew();
 			try
 			{
 				var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
@@ -1720,6 +1762,11 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				throw new DecompilerException(module, field, innerException);
 			}
+			finally
+			{
+				watch.Stop();
+				Instrumentation.DecompilerEventSource.Log.DoDecompileField(field.FullName, watch.ElapsedMilliseconds);
+			}
 		}
 
 		internal static bool IsFixedField(IField field, out IType type, out int elementCount)
@@ -1742,6 +1789,7 @@ namespace ICSharpCode.Decompiler.CSharp
 		EntityDeclaration DoDecompile(IProperty property, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
 		{
 			Debug.Assert(decompilationContext.CurrentMember == property);
+			var watch = System.Diagnostics.Stopwatch.StartNew();
 			try
 			{
 				var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
@@ -1796,11 +1844,17 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				throw new DecompilerException(module, property, innerException);
 			}
+			finally
+			{
+				watch.Stop();
+				Instrumentation.DecompilerEventSource.Log.DoDecompileProperty(property.FullName, watch.ElapsedMilliseconds);
+			}
 		}
 
 		EntityDeclaration DoDecompile(IEvent ev, DecompileRun decompileRun, ITypeResolveContext decompilationContext)
 		{
 			Debug.Assert(decompilationContext.CurrentMember == ev);
+			var watch = System.Diagnostics.Stopwatch.StartNew();
 			try
 			{
 				var typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
@@ -1835,6 +1889,11 @@ namespace ICSharpCode.Decompiler.CSharp
 			catch (Exception innerException) when (!(innerException is OperationCanceledException || innerException is DecompilerException))
 			{
 				throw new DecompilerException(module, ev, innerException);
+			}
+			finally
+			{
+				watch.Stop();
+				Instrumentation.DecompilerEventSource.Log.DoDecompileEvent(ev.FullName, watch.ElapsedMilliseconds);
 			}
 		}
 
