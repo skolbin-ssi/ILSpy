@@ -24,6 +24,9 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 	{
 		public interface IA
 		{
+#if CS80
+			static int Field;
+#endif
 			int Property1 { get; }
 			int Property2 { set; }
 			int Property3 { get; set; }
@@ -67,7 +70,33 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		public interface IA2 : IA
 		{
 #if CS80
+			int IA.Property3 {
+				get {
+					return 0;
+				}
+				set {
+				}
+			}
+
+			event EventHandler IA.MyEvent {
+				add {
+				}
+				remove {
+				}
+			}
+
+			new event EventHandler MyEvent {
+				add {
+				}
+				remove {
+				}
+			}
+
 			void IA.InternalMethod()
+			{
+			}
+
+			new void Method()
 			{
 			}
 #endif
