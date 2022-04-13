@@ -7,6 +7,7 @@ using System.Windows.Input;
 using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.IL.Transforms;
 using ICSharpCode.ILSpy.Docking;
+using ICSharpCode.ILSpy.Options;
 using ICSharpCode.ILSpy.ViewModels;
 
 namespace ICSharpCode.ILSpy
@@ -31,7 +32,7 @@ namespace ICSharpCode.ILSpy
 
 #if DEBUG
 			DockWorkspace.Instance.PropertyChanged += DockWorkspace_PropertyChanged;
-			this.filterSettings = MainWindow.Instance.SessionSettings.FilterSettings;
+			filterSettings = DockWorkspace.Instance.ActiveTabPage.FilterSettings;
 			filterSettings.PropertyChanged += FilterSettings_PropertyChanged;
 			MainWindow.Instance.SelectionChanged += SelectionChanged;
 			writingOptions.PropertyChanged += WritingOptions_PropertyChanged;

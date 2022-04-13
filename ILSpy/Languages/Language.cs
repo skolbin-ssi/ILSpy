@@ -29,6 +29,7 @@ using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.TypeSystem.Implementation;
 using ICSharpCode.Decompiler.Util;
+using ICSharpCode.ILSpyX;
 
 using SRM = System.Reflection.Metadata;
 
@@ -541,7 +542,7 @@ namespace ICSharpCode.ILSpy
 
 		public virtual CodeMappingInfo GetCodeMappingInfo(PEFile module, SRM.EntityHandle member)
 		{
-			var declaringType = member.GetDeclaringType(module.Metadata);
+			var declaringType = (SRM.TypeDefinitionHandle)member.GetDeclaringType(module.Metadata);
 
 			if (declaringType.IsNil && member.Kind == SRM.HandleKind.TypeDefinition)
 			{

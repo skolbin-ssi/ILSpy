@@ -49,6 +49,7 @@ using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.Themes;
 using ICSharpCode.ILSpy.TreeNodes;
 using ICSharpCode.ILSpy.ViewModels;
+using ICSharpCode.ILSpyX;
 using ICSharpCode.TreeView;
 
 using Microsoft.Win32;
@@ -104,7 +105,10 @@ namespace ICSharpCode.ILSpy
 			var spySettings = ILSpySettings.Load();
 			this.spySettingsForMainWindow_Loaded = spySettings;
 			this.sessionSettings = new SessionSettings(spySettings);
-			this.AssemblyListManager = new AssemblyListManager(spySettings);
+			this.AssemblyListManager = new AssemblyListManager(spySettings) {
+				ApplyWinRTProjections = Options.DecompilerSettingsPanel.CurrentDecompilerSettings.ApplyWindowsRuntimeProjections,
+				UseDebugSymbols = Options.DecompilerSettingsPanel.CurrentDecompilerSettings.UseDebugSymbols
+			};
 
 			// Make sure Images are initialized on the UI thread.
 			this.Icon = Images.ILSpyIcon;
@@ -146,7 +150,7 @@ namespace ICSharpCode.ILSpy
 					filterSettings = dock.ActiveTabPage.FilterSettings;
 					filterSettings.PropertyChanged += filterSettings_PropertyChanged;
 
-					var windowMenuItem = mainMenu.Items.OfType<MenuItem>().First(m => (string)m.Tag == Properties.Resources._Window);
+					var windowMenuItem = mainMenu.Items.OfType<MenuItem>().First(m => (string)m.Tag == nameof(Properties.Resources._Window));
 					foreach (MenuItem menuItem in windowMenuItem.Items.OfType<MenuItem>())
 					{
 						if (menuItem.IsCheckable && menuItem.Tag is TabPageModel)
@@ -355,7 +359,7 @@ namespace ICSharpCode.ILSpy
 
 		private void InitWindowMenu()
 		{
-			var windowMenuItem = mainMenu.Items.OfType<MenuItem>().First(m => (string)m.Tag == Properties.Resources._Window);
+			var windowMenuItem = mainMenu.Items.OfType<MenuItem>().First(m => (string)m.Tag == nameof(Properties.Resources._Window));
 			Separator separatorBeforeTools, separatorBeforeDocuments;
 			windowMenuItem.Items.Add(separatorBeforeTools = new Separator());
 			windowMenuItem.Items.Add(separatorBeforeDocuments = new Separator());
@@ -850,12 +854,12 @@ namespace ICSharpCode.ILSpy
 			{
 				// Load AssemblyList only in Loaded event so that WPF is initialized before we start the CPU-heavy stuff.
 				// This makes the UI come up a bit faster.
-				this.assemblyList = AssemblyListManager.LoadList(spySettings, sessionSettings.ActiveAssemblyList);
+				this.assemblyList = AssemblyListManager.LoadList(sessionSettings.ActiveAssemblyList);
 			}
 			else
 			{
-				this.assemblyList = new AssemblyList(AssemblyListManager.DefaultListName);
 				AssemblyListManager.ClearAll();
+				this.assemblyList = AssemblyListManager.CreateList(AssemblyListManager.DefaultListName);
 			}
 
 			HandleCommandLineArguments(App.CommandLineArguments);
@@ -932,12 +936,6 @@ namespace ICSharpCode.ILSpy
 
 		public async Task ShowMessageIfUpdatesAvailableAsync(ILSpySettings spySettings, bool forceCheck = false)
 		{
-			// Don't check for updates if we're in an MSIX since they work differently
-			if (StorePackageHelper.HasPackageIdentity)
-			{
-				return;
-			}
-
 			string downloadUrl;
 			if (forceCheck)
 			{
@@ -989,7 +987,7 @@ namespace ICSharpCode.ILSpy
 
 		public void ShowAssemblyList(string name)
 		{
-			AssemblyList list = this.AssemblyListManager.LoadList(ILSpySettings.Load(), name);
+			AssemblyList list = this.AssemblyListManager.LoadList(name);
 			//Only load a new list when it is a different one
 			if (list.ListName != CurrentAssemblyList.ListName)
 			{
@@ -1016,13 +1014,13 @@ namespace ICSharpCode.ILSpy
 
 			if (assemblyList.ListName == AssemblyListManager.DefaultListName)
 #if DEBUG
-				this.Title = $"ILSpy {RevisionClass.FullVersion}";
+				this.Title = $"ILSpy {DecompilerVersionInfo.FullVersion}";
 #else
 				this.Title = "ILSpy";
 #endif
 			else
 #if DEBUG
-				this.Title = $"ILSpy {RevisionClass.FullVersion} - " + assemblyList.ListName;
+				this.Title = $"ILSpy {DecompilerVersionInfo.FullVersion} - " + assemblyList.ListName;
 #else
 				this.Title = "ILSpy - " + assemblyList.ListName;
 #endif
@@ -1415,7 +1413,7 @@ namespace ICSharpCode.ILSpy
 			{
 				refreshInProgress = true;
 				var path = GetPathForNode(AssemblyTreeView.SelectedItem as SharpTreeNode);
-				ShowAssemblyList(AssemblyListManager.LoadList(ILSpySettings.Load(), assemblyList.ListName));
+				ShowAssemblyList(AssemblyListManager.LoadList(assemblyList.ListName));
 				SelectNode(FindNodeByPath(path, true), false, false);
 			}
 			finally

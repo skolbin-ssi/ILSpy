@@ -42,8 +42,10 @@ using ICSharpCode.Decompiler.Output;
 using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
+using ICSharpCode.ILSpy.Options;
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.TreeNodes;
+using ICSharpCode.ILSpyX;
 
 namespace ICSharpCode.ILSpy
 {
@@ -449,6 +451,10 @@ namespace ICSharpCode.ILSpy
 				{
 					output.WriteLine("// This assembly was compiled using the /deterministic option.");
 				}
+				if (module.Metadata.MetadataKind != MetadataKind.Ecma335)
+				{
+					output.WriteLine("// This assembly was loaded with Windows Runtime projections applied.");
+				}
 				if (metadata.IsAssembly)
 				{
 					var asm = metadata.GetAssemblyDefinition();
@@ -496,7 +502,7 @@ namespace ICSharpCode.ILSpy
 			readonly DecompilationOptions options;
 
 			public ILSpyWholeProjectDecompiler(LoadedAssembly assembly, DecompilationOptions options)
-				: base(options.DecompilerSettings, assembly.GetAssemblyResolver(), assembly.GetAssemblyReferenceClassifier(), assembly.GetDebugInfoOrNull())
+				: base(options.DecompilerSettings, assembly.GetAssemblyResolver(), assembly.GetAssemblyReferenceClassifier(options.DecompilerSettings.ApplyWindowsRuntimeProjections), assembly.GetDebugInfoOrNull())
 			{
 				this.assembly = assembly;
 				this.options = options;
