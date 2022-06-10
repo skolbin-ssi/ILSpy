@@ -32,7 +32,9 @@
     <SignAssembly>True</SignAssembly>
     <AssemblyOriginatorKeyFile>ICSharpCode.Decompiler.snk</AssemblyOriginatorKeyFile>
     <NoWarn>1701;1702;1591;1573</NoWarn>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
 
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <DebugType>embedded</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
@@ -42,12 +44,6 @@
   <ItemGroup>
     <None Include="PackageReadme.md" Pack="true" PackagePath="\" />
   </ItemGroup>
-
-  <!-- HACK: Disable package generation on Unix due to tooling issues. -->
-  <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <NuspecProperties>Configuration=$(Configuration)</NuspecProperties>
-  </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <CheckForOverflowUnderflow>True</CheckForOverflowUnderflow>
@@ -121,6 +117,7 @@
     <Compile Include="IL\ControlFlow\AwaitInFinallyTransform.cs" />
     <Compile Include="IL\Transforms\IntroduceNativeIntTypeOnLocals.cs" />
     <Compile Include="IL\Transforms\LdLocaDupInitObjTransform.cs" />
+    <Compile Include="IL\Transforms\ParameterNullCheckTransform.cs" />
     <Compile Include="IL\Transforms\PatternMatchingTransform.cs" />
     <Compile Include="IL\Transforms\RemoveInfeasiblePathTransform.cs" />
     <Compile Include="Instrumentation\DecompilerEventSource.cs" />

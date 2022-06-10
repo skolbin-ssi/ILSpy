@@ -45,6 +45,7 @@ using ICSharpCode.Decompiler.TypeSystem.Implementation;
 using ICSharpCode.ILSpy.Analyzers;
 using ICSharpCode.ILSpy.Commands;
 using ICSharpCode.ILSpy.Docking;
+using ICSharpCode.ILSpy.Search;
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.Themes;
 using ICSharpCode.ILSpy.TreeNodes;
@@ -89,7 +90,7 @@ namespace ICSharpCode.ILSpy
 
 		public AnalyzerTreeView AnalyzerTreeView {
 			get {
-				return FindResource("AnalyzerTreeView") as AnalyzerTreeView;
+				return !IsLoaded ? null : FindResource("AnalyzerTreeView") as AnalyzerTreeView;
 			}
 		}
 
@@ -428,7 +429,7 @@ namespace ICSharpCode.ILSpy
 				MenuItem CreateMenuItem(ToolPaneModel pane)
 				{
 					MenuItem menuItem = new MenuItem();
-					menuItem.Command = new ToolPaneCommand(pane.ContentId);
+					menuItem.Command = pane.AssociatedCommand ?? new ToolPaneCommand(pane.ContentId);
 					menuItem.Header = pane.Title;
 					menuItem.Tag = pane;
 					var shortcutKey = pane.ShortcutKey;
@@ -1429,6 +1430,20 @@ namespace ICSharpCode.ILSpy
 		#endregion
 
 		#region Decompile (TreeView_SelectionChanged)
+		bool delayDecompilationRequestDueToContextMenu;
+
+		protected override void OnContextMenuClosing(ContextMenuEventArgs e)
+		{
+			base.OnContextMenuClosing(e);
+
+			if (delayDecompilationRequestDueToContextMenu)
+			{
+				delayDecompilationRequestDueToContextMenu = false;
+				var state = DockWorkspace.Instance.ActiveTabPage.GetState() as DecompilerTextViewState;
+				DecompileSelectedNodes(state);
+			}
+		}
+
 		void TreeView_SelectionChanged(object sender, SelectionChangedEventArgs e)
 		{
 			DecompilerTextViewState state = null;
@@ -1436,7 +1451,9 @@ namespace ICSharpCode.ILSpy
 			{
 				state = DockWorkspace.Instance.ActiveTabPage.GetState() as DecompilerTextViewState;
 			}
-			if (!changingActiveTab)
+
+			this.delayDecompilationRequestDueToContextMenu = Mouse.RightButton == MouseButtonState.Pressed;
+			if (!changingActiveTab && !delayDecompilationRequestDueToContextMenu)
 			{
 				DecompileSelectedNodes(state);
 			}

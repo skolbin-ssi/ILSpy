@@ -145,12 +145,19 @@ namespace ICSharpCode.Decompiler
 			if (languageVersion < CSharp.LanguageVersion.CSharp10_0)
 			{
 				fileScopedNamespaces = false;
+				recordStructs = false;
+			}
+			if (languageVersion < CSharp.LanguageVersion.CSharp11_0)
+			{
+				parameterNullCheck = false;
 			}
 		}
 
 		public CSharp.LanguageVersion GetMinimumRequiredVersion()
 		{
-			if (fileScopedNamespaces)
+			if (parameterNullCheck)
+				return CSharp.LanguageVersion.CSharp11_0;
+			if (fileScopedNamespaces || recordStructs)
 				return CSharp.LanguageVersion.CSharp10_0;
 			if (nativeIntegers || initAccessors || functionPointers || forEachWithGetEnumeratorExtension
 				|| recordClasses || withExpressions || usePrimaryConstructorSyntax || covariantReturns)
@@ -256,6 +263,24 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool recordStructs = true;
+
+		/// <summary>
+		/// Use C# 10 <c>record</c> structs.
+		/// </summary>
+		[Category("C# 10.0 / VS 2022")]
+		[Description("DecompilerSettings.RecordStructs")]
+		public bool RecordStructs {
+			get { return recordStructs; }
+			set {
+				if (recordStructs != value)
+				{
+					recordStructs = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		bool withExpressions = true;
 
 		/// <summary>
@@ -342,6 +367,25 @@ namespace ICSharpCode.Decompiler
 				if (fileScopedNamespaces != value)
 				{
 					fileScopedNamespaces = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool parameterNullCheck = false;
+
+		/// <summary>
+		/// Use C# 11 parameter null-checking.
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.1")]
+		[Description("DecompilerSettings.ParameterNullCheck")]
+		[Browsable(false)]
+		public bool ParameterNullCheck {
+			get { return parameterNullCheck; }
+			set {
+				if (parameterNullCheck != value)
+				{
+					parameterNullCheck = value;
 					OnPropertyChanged();
 				}
 			}
