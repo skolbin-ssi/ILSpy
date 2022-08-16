@@ -240,7 +240,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				var loadInst = r.LoadInst;
 				if (loadInst.OpCode == OpCode.LdLoca)
 				{
-					if (!IsGeneratedValueTypeTemporary((LdLoca)loadInst, v, inlinedExpression))
+					if (!IsGeneratedValueTypeTemporary((LdLoca)loadInst, v, inlinedExpression, options))
 						return false;
 				}
 				else
@@ -285,7 +285,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		/// </summary>
 		/// <param name="loadInst">The load instruction (a descendant within 'next')</param>
 		/// <param name="v">The variable being inlined.</param>
-		static bool IsGeneratedValueTypeTemporary(LdLoca loadInst, ILVariable v, ILInstruction inlinedExpression)
+		static bool IsGeneratedValueTypeTemporary(LdLoca loadInst, ILVariable v, ILInstruction inlinedExpression, InliningOptions options)
 		{
 			Debug.Assert(loadInst.Variable == v);
 			// Inlining a value type variable is allowed only if the resulting code will maintain the semantics
@@ -295,6 +295,13 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			// of the rvalue (e.g. M(ref (MyStruct)obj); is invalid).
 			if (IsUsedAsThisPointerInCall(loadInst, out var method))
 			{
+				if (options.HasFlag(InliningOptions.Aggressive))
+				{
+					// Inlining might be required in ctor initializers (see #2714).
+					// expressionBuilder.VisitAddressOf will handle creating the copy for us.
+					return true;
+				}
+
 				switch (ClassifyExpression(inlinedExpression))
 				{
 					case ExpressionClassification.RValue:
@@ -397,13 +404,6 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			return inst != ldloca && inst.Parent is LdObj;
 		}
 
-		internal enum ExpressionClassification
-		{
-			RValue,
-			MutableLValue,
-			ReadonlyLValue,
-		}
-
 		/// <summary>
 		/// Gets whether the instruction, when converted into C#, turns into an l-value that can
 		/// be used to mutate a value-type.
@@ -416,7 +416,10 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			{
 				case OpCode.LdLoc:
 				case OpCode.StLoc:
-					if (((IInstructionWithVariableOperand)inst).Variable.IsRefReadOnly)
+					ILVariable v = ((IInstructionWithVariableOperand)inst).Variable;
+					if (v.IsRefReadOnly
+						|| v.Kind == VariableKind.ForeachLocal
+						|| v.Kind == VariableKind.UsingLocal)
 					{
 						return ExpressionClassification.ReadonlyLValue;
 					}
@@ -827,5 +830,12 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			// moving into and moving out-of are equivalent
 			return CanMoveInto(arg, stmt, arg);
 		}
+	}
+
+	internal enum ExpressionClassification
+	{
+		RValue,
+		MutableLValue,
+		ReadonlyLValue,
 	}
 }

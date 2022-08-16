@@ -733,8 +733,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 					case ThisReferenceExpression _:
 					case PrimitiveExpression _:
 					case IdentifierExpression _:
-					case MemberReferenceExpression
-					{
+					case MemberReferenceExpression {
 						Target: ThisReferenceExpression
 							or IdentifierExpression
 							or BaseReferenceExpression
@@ -1008,6 +1007,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 		public virtual void VisitLambdaExpression(LambdaExpression lambdaExpression)
 		{
 			StartNode(lambdaExpression);
+			WriteAttributes(lambdaExpression.Attributes);
 			if (lambdaExpression.IsAsync)
 			{
 				WriteKeyword(LambdaExpression.AsyncModifierRole);
@@ -1168,6 +1168,11 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 
 			writer.WriteToken(Interpolation.LBrace, "{");
 			interpolation.Expression.AcceptVisitor(this);
+			if (interpolation.Alignment != 0)
+			{
+				writer.WriteToken(Roles.Comma, ",");
+				writer.WritePrimitiveValue(interpolation.Alignment);
+			}
 			if (interpolation.Suffix != null)
 			{
 				writer.WriteToken(Roles.Colon, ":");
@@ -1498,6 +1503,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 					break;
 				case TypeParameterDeclaration _:
 				case ComposedType _:
+				case LambdaExpression _:
 					Space();
 					break;
 				default:
@@ -2559,6 +2565,11 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 				WriteKeyword(ParameterDeclaration.ThisModifierRole);
 				Space();
 			}
+			if (parameterDeclaration.IsRefScoped)
+			{
+				WriteKeyword(ParameterDeclaration.RefScopedRole);
+				Space();
+			}
 			switch (parameterDeclaration.ParameterModifier)
 			{
 				case ParameterModifier.Ref:
@@ -2577,6 +2588,11 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 					WriteKeyword(ParameterDeclaration.InModifierRole);
 					Space();
 					break;
+			}
+			if (parameterDeclaration.IsValueScoped)
+			{
+				WriteKeyword(ParameterDeclaration.ValueScopedRole);
+				Space();
 			}
 			parameterDeclaration.Type.AcceptVisitor(this);
 			if (!parameterDeclaration.Type.IsNull && !string.IsNullOrEmpty(parameterDeclaration.Name))
