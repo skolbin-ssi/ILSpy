@@ -44,6 +44,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 		NullablePublicOnly,
 		Conditional,
 		Obsolete,
+		Embedded,
 		IsReadOnly,
 		SpecialName,
 		DebuggerHidden,
@@ -105,11 +106,14 @@ namespace ICSharpCode.Decompiler.TypeSystem
 		// C# 9 attributes:
 		NativeInteger,
 		PreserveBaseOverrides,
+
+		// C# 11 attributes:
+		RequiredAttribute,
 	}
 
 	public static class KnownAttributes
 	{
-		internal const int Count = (int)KnownAttribute.PreserveBaseOverrides + 1;
+		internal const int Count = (int)KnownAttribute.RequiredAttribute + 1;
 
 		static readonly TopLevelTypeName[] typeNames = new TopLevelTypeName[Count]{
 			default,
@@ -122,6 +126,7 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			new TopLevelTypeName("System.Runtime.CompilerServices", "NullablePublicOnlyAttribute"),
 			new TopLevelTypeName("System.Diagnostics", nameof(ConditionalAttribute)),
 			new TopLevelTypeName("System", nameof(ObsoleteAttribute)),
+			new TopLevelTypeName("Microsoft.CodeAnalysis", "EmbeddedAttribute"),
 			new TopLevelTypeName("System.Runtime.CompilerServices", "IsReadOnlyAttribute"),
 			new TopLevelTypeName("System.Runtime.CompilerServices", nameof(SpecialNameAttribute)),
 			new TopLevelTypeName("System.Diagnostics", nameof(DebuggerHiddenAttribute)),
@@ -173,6 +178,8 @@ namespace ICSharpCode.Decompiler.TypeSystem
 			// C# 9 attributes:
 			new TopLevelTypeName("System.Runtime.CompilerServices", "NativeIntegerAttribute"),
 			new TopLevelTypeName("System.Runtime.CompilerServices", "PreserveBaseOverridesAttribute"),
+			// C# 11 attributes:
+			new TopLevelTypeName("System.Runtime.CompilerServices", "RequiredMemberAttribute"),
 		};
 
 		public static ref readonly TopLevelTypeName GetTypeName(this KnownAttribute attr)

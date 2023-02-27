@@ -24,6 +24,8 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Xml.Linq;
 
+using ICSharpCode.ILSpyX.Settings;
+
 namespace ICSharpCode.ILSpy.Options
 {
 	/// <summary>
@@ -37,27 +39,9 @@ namespace ICSharpCode.ILSpy.Options
 			InitializeComponent();
 		}
 
-		static Decompiler.DecompilerSettings currentDecompilerSettings;
-
-		public static Decompiler.DecompilerSettings CurrentDecompilerSettings {
-			get {
-				return currentDecompilerSettings ?? (currentDecompilerSettings = LoadDecompilerSettings(ILSpySettings.Load()));
-			}
-		}
-
 		public static Decompiler.DecompilerSettings LoadDecompilerSettings(ILSpySettings settings)
 		{
-			XElement e = settings["DecompilerSettings"];
-			var newSettings = new Decompiler.DecompilerSettings();
-			var properties = typeof(Decompiler.DecompilerSettings).GetProperties()
-				.Where(p => p.GetCustomAttribute<BrowsableAttribute>()?.Browsable != false);
-			foreach (var p in properties)
-			{
-				var value = (bool?)e.Attribute(p.Name);
-				if (value.HasValue)
-					p.SetValue(newSettings, value.Value);
-			}
-			return newSettings;
+			return ISettingsProvider.LoadDecompilerSettings(settings);
 		}
 
 		public void Load(ILSpySettings settings)
@@ -67,21 +51,10 @@ namespace ICSharpCode.ILSpy.Options
 
 		public void Save(XElement root)
 		{
-			XElement section = new XElement("DecompilerSettings");
 			var newSettings = ((DecompilerSettingsViewModel)this.DataContext).ToDecompilerSettings();
-			var properties = typeof(Decompiler.DecompilerSettings).GetProperties()
-				.Where(p => p.GetCustomAttribute<BrowsableAttribute>()?.Browsable != false);
-			foreach (var p in properties)
-			{
-				section.SetAttributeValue(p.Name, p.GetValue(newSettings));
-			}
-			XElement existingElement = root.Element("DecompilerSettings");
-			if (existingElement != null)
-				existingElement.ReplaceWith(section);
-			else
-				root.Add(section);
+			ISettingsProvider.SaveDecompilerSettings(root, newSettings);
 
-			currentDecompilerSettings = newSettings;
+			MainWindow.Instance.CurrentDecompilerSettings = newSettings;
 			MainWindow.Instance.AssemblyListManager.ApplyWinRTProjections = newSettings.ApplyWindowsRuntimeProjections;
 			MainWindow.Instance.AssemblyListManager.UseDebugSymbols = newSettings.UseDebugSymbols;
 		}
@@ -137,8 +110,8 @@ namespace ICSharpCode.ILSpy.Options
 
 		public void LoadDefaults()
 		{
-			currentDecompilerSettings = new Decompiler.DecompilerSettings();
-			this.DataContext = new DecompilerSettingsViewModel(currentDecompilerSettings);
+			MainWindow.Instance.CurrentDecompilerSettings = new Decompiler.DecompilerSettings();
+			this.DataContext = new DecompilerSettingsViewModel(MainWindow.Instance.CurrentDecompilerSettings);
 		}
 	}
 }

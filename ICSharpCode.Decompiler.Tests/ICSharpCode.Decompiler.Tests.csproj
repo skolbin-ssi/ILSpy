@@ -9,7 +9,7 @@
 
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 
-    <NoWarn>1701;1702;1705,67,169,1058,728,1720,649,168,251,660,661,675;1998;162</NoWarn>
+    <NoWarn>1701;1702;1705,67,169,1058,728,1720,649,168,251,660,661,675;1998;162;8632</NoWarn>
 
     <GenerateAssemblyVersionAttribute>False</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>False</GenerateAssemblyFileVersionAttribute>
@@ -45,7 +45,7 @@
   <ItemGroup>
     <PackageReference Include="DiffLib" Version="$(DiffLibVersion)" />
     <PackageReference Include="CliWrap" Version="3.4.4" />
-    <PackageReference Include="NuGet.Protocol" Version="6.2.1" />
+    <PackageReference Include="NuGet.Protocol" Version="6.2.2" />
     <PackageReference Include="System.Collections.Immutable" Version="$(SystemCollectionsImmutableVersion)" />
     <PackageReference Include="System.Reflection.Metadata" Version="$(SystemReflectionMetadataVersion)" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="$(RoslynVersion)" />
@@ -57,7 +57,7 @@
     <!-- used for xml test result files -->
     <PackageReference Include="JunitXml.TestLogger" Version="$(JUnitXmlTestLoggerVersion)" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="$(MicrosoftNETTestSdkVersion)" />
-    <PackageReference Include="System.Memory" Version="4.5.4" />
+    <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="Mono.Cecil" Version="$(MonoCecilVersion)" />
     <PackageReference Include="Microsoft.NETCore.ILAsm" Version="$(ILAsmVersion)" />
     <PackageReference Include="Microsoft.NETCore.ILDAsm" Version="$(ILDAsmVersion)" />
@@ -73,6 +73,8 @@
     <None Include="TestCases\Correctness\StackTests.il" />
     <None Include="TestCases\Correctness\StackTypes.il" />
     <None Include="TestCases\Correctness\Uninit.vb" />
+    <None Include="TestCases\Disassembler\Pretty\SortMembers.expected.il" />
+    <None Include="TestCases\Disassembler\Pretty\SortMembers.il" />
     <None Include="TestCases\ILPretty\GuessAccessors.cs" />
     <None Include="TestCases\ILPretty\GuessAccessors.il" />
     <None Include="TestCases\ILPretty\Issue2260SwitchString.il" />
@@ -110,6 +112,11 @@
     <Compile Include="Output\InsertParenthesesVisitorTests.cs" />
     <Compile Include="ProjectDecompiler\TargetFrameworkTests.cs" />
     <Compile Include="TestAssemblyResolver.cs" />
+    <None Include="TestCases\VBPretty\VBAutomaticEvents.vb" />
+    <Compile Include="TestCases\VBPretty\VBAutomaticEvents.cs" />
+    <Compile Include="TestCases\VBPretty\VBNonGenericForEach.cs" />
+    <None Include="TestCases\VBPretty\VBNonGenericForEach.vb" />
+    <Compile Include="TypeSystem\ReflectionHelperTests.cs" />
     <None Include="TestCases\Pretty\MetadataAttributes.cs" />
     <None Include="TestCases\Correctness\ComInterop.cs" />
     <Compile Include="TestCases\Correctness\DeconstructionTests.cs" />
@@ -311,6 +318,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="TestCases\PdbGen\ProgressReporting.xml" />
     <Content Include="TestCases\PdbGen\ForLoopTests.xml" />
     <Content Include="TestCases\PdbGen\CustomPdbId.xml" />
     <Content Include="TestCases\PdbGen\HelloWorld.xml" />

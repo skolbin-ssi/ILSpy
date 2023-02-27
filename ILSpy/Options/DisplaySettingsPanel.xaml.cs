@@ -26,6 +26,8 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
 
+using ICSharpCode.ILSpyX.Settings;
+
 namespace ICSharpCode.ILSpy.Options
 {
 	/// <summary>
@@ -68,14 +70,6 @@ namespace ICSharpCode.ILSpy.Options
 			this.DataContext = LoadDisplaySettings(settings);
 		}
 
-		static DisplaySettings currentDisplaySettings;
-
-		public static DisplaySettings CurrentDisplaySettings {
-			get {
-				return currentDisplaySettings ?? (currentDisplaySettings = LoadDisplaySettings(ILSpySettings.Load()));
-			}
-		}
-
 		static bool IsSymbolFont(FontFamily fontFamily)
 		{
 			foreach (var tf in fontFamily.GetTypefaces())
@@ -102,10 +96,10 @@ namespace ICSharpCode.ILSpy.Options
 					select ff).ToArray();
 		}
 
-		public static DisplaySettings LoadDisplaySettings(ILSpySettings settings)
+		public static DisplaySettingsViewModel LoadDisplaySettings(ILSpySettings settings)
 		{
 			XElement e = settings["DisplaySettings"];
-			var s = new DisplaySettings();
+			var s = new DisplaySettingsViewModel();
 			s.SelectedFont = new FontFamily((string)e.Attribute("Font") ?? "Consolas");
 			s.SelectedFontSize = (double?)e.Attribute("FontSize") ?? 10.0 * 4 / 3;
 			s.ShowLineNumbers = (bool?)e.Attribute("ShowLineNumbers") ?? false;
@@ -132,7 +126,7 @@ namespace ICSharpCode.ILSpy.Options
 
 		public void Save(XElement root)
 		{
-			var s = (DisplaySettings)this.DataContext;
+			var s = (DisplaySettingsViewModel)this.DataContext;
 
 			var section = new XElement("DisplaySettings");
 			section.SetAttributeValue("Font", s.SelectedFont.Source);
@@ -162,8 +156,7 @@ namespace ICSharpCode.ILSpy.Options
 			else
 				root.Add(section);
 
-			if (currentDisplaySettings != null)
-				currentDisplaySettings.CopyValues(s);
+			MainWindow.Instance.CurrentDisplaySettings.CopyValues(s);
 		}
 
 		private void TextBox_PreviewTextInput(object sender, System.Windows.Input.TextCompositionEventArgs e)
@@ -183,8 +176,8 @@ namespace ICSharpCode.ILSpy.Options
 
 		public void LoadDefaults()
 		{
-			currentDisplaySettings = new DisplaySettings();
-			this.DataContext = currentDisplaySettings;
+			MainWindow.Instance.CurrentDisplaySettings.CopyValues(new DisplaySettingsViewModel());
+			this.DataContext = MainWindow.Instance.CurrentDisplaySettings;
 		}
 	}
 

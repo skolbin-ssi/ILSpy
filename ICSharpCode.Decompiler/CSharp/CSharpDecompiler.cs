@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2014 Daniel Grunwald
+// Copyright (c) 2014 Daniel Grunwald
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -136,7 +136,7 @@ namespace ICSharpCode.Decompiler.CSharp
 							// run interleaved (statement by statement).
 							// Pretty much all transforms that open up new expression inlining
 							// opportunities belong in this category.
-							new ILInlining(),
+							new ILInlining() { options = InliningOptions.AllowInliningOfLdloca },
 							// Inlining must be first, because it doesn't trigger re-runs.
 							// Any other transform that opens up new inlining opportunities should call RequestRerun().
 							new ExpressionTransforms(),
@@ -367,8 +367,16 @@ namespace ICSharpCode.Decompiler.CSharp
 							return true;
 					}
 					// event-fields are not [CompilerGenerated]
-					if (settings.AutomaticEvents && metadata.GetTypeDefinition(field.GetDeclaringType()).GetEvents().Any(ev => metadata.GetEventDefinition(ev).Name == field.Name))
-						return true;
+					if (settings.AutomaticEvents)
+					{
+						foreach (var ev in metadata.GetTypeDefinition(field.GetDeclaringType()).GetEvents())
+						{
+							var eventName = metadata.GetString(metadata.GetEventDefinition(ev).Name);
+							var fieldName = metadata.GetString(field.Name);
+							if (IsEventBackingFieldName(fieldName, eventName, out _))
+								return true;
+						}
+					}
 					if (settings.ArrayInitializers && metadata.GetString(metadata.GetTypeDefinition(field.GetDeclaringType()).Name).StartsWith("<PrivateImplementationDetails>", StringComparison.Ordinal))
 					{
 						// only hide fields starting with '__StaticArrayInit'
@@ -408,6 +416,20 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				propertyName = name.Substring(1);
 				return field.GetCustomAttributes().HasKnownAttribute(metadata, KnownAttribute.CompilerGenerated);
+			}
+			return false;
+		}
+
+		internal static bool IsEventBackingFieldName(string fieldName, string eventName, out int suffixLength)
+		{
+			suffixLength = 0;
+			if (fieldName == eventName)
+				return true;
+			var vbSuffixLength = "Event".Length;
+			if (fieldName.Length == eventName.Length + vbSuffixLength && fieldName.StartsWith(eventName, StringComparison.Ordinal) && fieldName.EndsWith("Event", StringComparison.Ordinal))
+			{
+				suffixLength = vbSuffixLength;
+				return true;
 			}
 			return false;
 		}
@@ -953,7 +975,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			if (type == null)
 				throw new InvalidOperationException($"Could not find type definition {fullTypeName} in type system.");
 			if (type.ParentModule != typeSystem.MainModule)
-				throw new NotSupportedException("Decompiling types that are not part of the main module is not supported.");
+				throw new NotSupportedException($"Type {fullTypeName} was not found in the module being decompiled, but only in {type.ParentModule.Name}");
 			var decompilationContext = new SimpleTypeResolveContext(typeSystem.MainModule);
 			var decompileRun = CreateDecompileRun();
 			syntaxTree = new SyntaxTree();
@@ -1266,6 +1288,11 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				typeSystemAstBuilder = CreateAstBuilder(decompileRun.Settings);
 				var entityDecl = typeSystemAstBuilder.ConvertEntity(typeDef);
+				if (entityDecl is DelegateDeclaration delegateDeclaration)
+				{
+					// Fix empty parameter names in delegate declarations
+					FixParameterNames(delegateDeclaration);
+				}
 				var typeDecl = entityDecl as TypeDeclaration;
 				if (typeDecl == null)
 				{
@@ -1379,6 +1406,10 @@ namespace ICSharpCode.Decompiler.CSharp
 								attr.Remove();
 						}
 					}
+				}
+				if (settings.RequiredMembers)
+				{
+					RemoveAttribute(typeDecl, KnownAttribute.RequiredAttribute);
 				}
 				if (typeDecl.ClassType == ClassType.Enum)
 				{
@@ -1871,6 +1902,10 @@ namespace ICSharpCode.Decompiler.CSharp
 				typeSystemAstBuilder.UseSpecialConstants = !(field.DeclaringType.Equals(field.ReturnType) || isMathPIOrE);
 				var fieldDecl = typeSystemAstBuilder.ConvertEntity(field);
 				SetNewModifier(fieldDecl);
+				if (settings.RequiredMembers && RemoveAttribute(fieldDecl, KnownAttribute.RequiredAttribute))
+				{
+					fieldDecl.Modifiers |= Modifiers.Required;
+				}
 				if (settings.FixedBuffers && IsFixedField(field, out var elementType, out var elementCount))
 				{
 					var fixedFieldDecl = new FixedFieldDeclaration();
@@ -1982,6 +2017,10 @@ namespace ICSharpCode.Decompiler.CSharp
 					RemoveAttribute(getter, KnownAttribute.PreserveBaseOverrides);
 					propertyDecl.Modifiers &= ~(Modifiers.New | Modifiers.Virtual);
 					propertyDecl.Modifiers |= Modifiers.Override;
+				}
+				if (settings.RequiredMembers && RemoveAttribute(propertyDecl, KnownAttribute.RequiredAttribute))
+				{
+					propertyDecl.Modifiers |= Modifiers.Required;
 				}
 				return propertyDecl;
 			}

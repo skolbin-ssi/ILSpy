@@ -69,6 +69,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 		UseMcs5_23 = 0x2000,
 		UseTestRunner = 0x4000,
 		NullableEnable = 0x8000,
+		ReferenceUnsafe = 0x10000,
 		UseMcsMask = UseMcs2_6_4 | UseMcs5_23,
 		UseRoslynMask = UseRoslyn1_3_2 | UseRoslyn2_10_0 | UseRoslyn3_11_0 | UseRoslynLatest
 	}
@@ -84,6 +85,8 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 		UseOwnDisassembler = 0x8,
 		/// Work around bug in .NET 5 ilasm (https://github.com/dotnet/runtime/issues/32400)
 		UseLegacyAssembler = 0x10,
+		/// UseSortByNameFilter, implies UseOwnDisassembler
+		SortedOutput = 0x20,
 	}
 
 	public static partial class Tester
@@ -175,13 +178,19 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			}
 
 			var command = Cli.Wrap(ilasmPath)
-				.WithArguments($"/nologo {otherOptions}/output=\"{outputFile}\" \"{sourceFileName}\"")
+				.WithArguments($"/quiet {otherOptions}/output=\"{outputFile}\" \"{sourceFileName}\"")
 				.WithValidation(CommandResultValidation.None);
 
 			var result = await command.ExecuteBufferedAsync().ConfigureAwait(false);
 
-			Console.WriteLine("output: " + result.StandardOutput);
-			Console.WriteLine("errors: " + result.StandardError);
+			if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+			{
+				Console.WriteLine("output:" + Environment.NewLine + result.StandardOutput);
+			}
+			if (!string.IsNullOrWhiteSpace(result.StandardError))
+			{
+				Console.WriteLine("errors:" + Environment.NewLine + result.StandardError);
+			}
 			Assert.AreEqual(0, result.ExitCode, "ilasm failed");
 
 			return outputFile;
@@ -189,7 +198,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 
 		public static async Task<string> Disassemble(string sourceFileName, string outputFile, AssemblerOptions asmOptions)
 		{
-			if (asmOptions.HasFlag(AssemblerOptions.UseOwnDisassembler))
+			if (asmOptions.HasFlag(AssemblerOptions.UseOwnDisassembler) || asmOptions.HasFlag(AssemblerOptions.SortedOutput))
 			{
 				using (var peFileStream = new FileStream(sourceFileName, FileMode.Open, FileAccess.Read))
 				using (var peFile = new PEFile(sourceFileName, peFileStream))
@@ -198,7 +207,11 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 					var metadata = peFile.Metadata;
 					var output = new PlainTextOutput(writer);
 					ReflectionDisassembler rd = new ReflectionDisassembler(output, CancellationToken.None);
-					rd.AssemblyResolver = new UniversalAssemblyResolver(sourceFileName, true, null);
+					if (asmOptions.HasFlag(AssemblerOptions.SortedOutput))
+					{
+						rd.EntityProcessor = new SortByNameProcessor();
+					}
+					rd.AssemblyResolver = new UniversalAssemblyResolver(sourceFileName, throwOnError: true, null);
 					rd.DetectControlStructure = false;
 					rd.WriteAssemblyReferences(metadata);
 					if (metadata.IsAssembly)
@@ -223,8 +236,14 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 
 			var result = await command.ExecuteBufferedAsync().ConfigureAwait(false);
 
-			Console.WriteLine("output: " + result.StandardOutput);
-			Console.WriteLine("errors: " + result.StandardError);
+			if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+			{
+				Console.WriteLine("output:" + Environment.NewLine + result.StandardOutput);
+			}
+			if (!string.IsNullOrWhiteSpace(result.StandardError))
+			{
+				Console.WriteLine("errors:" + Environment.NewLine + result.StandardError);
+			}
 			Assert.AreEqual(0, result.ExitCode, "ildasm failed");
 
 			// Unlike the .imagebase directive (which is a fixed value when compiling with /deterministic),
@@ -352,10 +371,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				{
 					preprocessorSymbols.Add("ROSLYN4");
 					preprocessorSymbols.Add("CS100");
-					if (flags.HasFlag(CompilerOptions.Preview))
-					{
-						preprocessorSymbols.Add("CS110");
-					}
+					preprocessorSymbols.Add("CS110");
 				}
 			}
 			else if ((flags & CompilerOptions.UseMcsMask) != 0)
@@ -425,7 +441,11 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				{
 					references = references.Concat(new[] { "-r:\"Microsoft.VisualBasic.dll\"" });
 				}
-				string otherOptions = $"-noconfig " +
+				if (useRoslyn && !targetNet40 && flags.HasFlag(CompilerOptions.ReferenceUnsafe))
+				{
+					references = references.Concat(new[] { "-r:\"System.Runtime.CompilerServices.Unsafe.dll\"" });
+				}
+				string otherOptions = $"-nologo -noconfig " +
 					$"-langversion:{languageVersion} " +
 					$"-unsafe -o{(flags.HasFlag(CompilerOptions.Optimize) ? "+ " : "- ")}";
 
@@ -477,12 +497,18 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				var command = Cli.Wrap(cscPath)
 					.WithArguments($"{otherOptions} -lib:{libPath} {string.Join(" ", references)} -out:\"{Path.GetFullPath(results.PathToAssembly)}\" {string.Join(" ", sourceFileNames.Select(fn => '"' + Path.GetFullPath(fn) + '"'))}")
 					.WithValidation(CommandResultValidation.None);
-				Console.WriteLine($"\"{command.TargetFilePath}\" {command.Arguments}");
+				//Console.WriteLine($"\"{command.TargetFilePath}\" {command.Arguments}");
 
 				var result = await command.ExecuteBufferedAsync().ConfigureAwait(false);
+				if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+				{
+					Console.WriteLine("output:" + Environment.NewLine + result.StandardOutput);
+				}
+				if (!string.IsNullOrWhiteSpace(result.StandardError))
+				{
+					Console.WriteLine("errors:" + Environment.NewLine + result.StandardError);
+				}
 
-				Console.WriteLine("output: " + result.StandardOutput);
-				Console.WriteLine("errors: " + result.StandardError);
 				Assert.AreEqual(0, result.ExitCode, "csc failed");
 
 				return results;
@@ -533,12 +559,18 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 				var command = Cli.Wrap(mcsPath)
 					.WithArguments($"{otherOptions}-out:\"{Path.GetFullPath(results.PathToAssembly)}\" {string.Join(" ", sourceFileNames.Select(fn => '"' + Path.GetFullPath(fn) + '"'))}")
 					.WithValidation(CommandResultValidation.None);
-				Console.WriteLine($"\"{command.TargetFilePath}\" {command.Arguments}");
+				//Console.WriteLine($"\"{command.TargetFilePath}\" {command.Arguments}");
 
 				var result = await command.ExecuteBufferedAsync().ConfigureAwait(false);
 
-				Console.WriteLine("output: " + result.StandardOutput);
-				Console.WriteLine("errors: " + result.StandardError);
+				if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+				{
+					Console.WriteLine("output:" + Environment.NewLine + result.StandardOutput);
+				}
+				if (!string.IsNullOrWhiteSpace(result.StandardError))
+				{
+					Console.WriteLine("errors:" + Environment.NewLine + result.StandardError);
+				}
 				Assert.AreEqual(0, result.ExitCode, "mcs failed");
 
 				return results;
@@ -553,7 +585,7 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 					CompilerOptions.UseRoslyn1_3_2 => CSharp.LanguageVersion.CSharp6,
 					CompilerOptions.UseRoslyn2_10_0 => CSharp.LanguageVersion.CSharp7_3,
 					CompilerOptions.UseRoslyn3_11_0 => CSharp.LanguageVersion.CSharp9_0,
-					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp10_0,
+					_ => cscOptions.HasFlag(CompilerOptions.Preview) ? CSharp.LanguageVersion.Latest : CSharp.LanguageVersion.CSharp11_0,
 				};
 				DecompilerSettings settings = new(langVersion) {
 					// Never use file-scoped namespaces
@@ -810,8 +842,14 @@ namespace ICSharpCode.Decompiler.Tests.Helpers
 			var result = await command.ExecuteBufferedAsync().ConfigureAwait(false);
 			Assert.AreEqual(0, result.ExitCode, "sn failed");
 
-			Console.WriteLine("output: " + result.StandardOutput);
-			Console.WriteLine("errors: " + result.StandardError);
+			if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+			{
+				Console.WriteLine("output:" + Environment.NewLine + result.StandardOutput);
+			}
+			if (!string.IsNullOrWhiteSpace(result.StandardError))
+			{
+				Console.WriteLine("errors:" + Environment.NewLine + result.StandardError);
+			}
 		}
 
 		public static async Task<string> FindMSBuild()

@@ -79,25 +79,11 @@ namespace ICSharpCode.ILSpy.Search
 
 			ContextMenuProvider.Add(listBox);
 			MainWindow.Instance.CurrentAssemblyListChanged += MainWindow_Instance_CurrentAssemblyListChanged;
-			DockWorkspace.Instance.PropertyChanged += DockWorkspace_PropertyChanged;
 			filterSettings = MainWindow.Instance.SessionSettings.FilterSettings;
-			filterSettings.PropertyChanged += FilterSettings_PropertyChanged;
 			CompositionTarget.Rendering += UpdateResults;
 
 			// This starts empty search right away, so do at the end (we're still in ctor)
 			searchModeComboBox.SelectedIndex = (int)MainWindow.Instance.SessionSettings.SelectedSearchMode;
-		}
-
-		private void DockWorkspace_PropertyChanged(object sender, PropertyChangedEventArgs e)
-		{
-			switch (e.PropertyName)
-			{
-				case nameof(DockWorkspace.Instance.ActiveTabPage):
-					filterSettings.PropertyChanged -= FilterSettings_PropertyChanged;
-					filterSettings = DockWorkspace.Instance.ActiveTabPage.FilterSettings;
-					filterSettings.PropertyChanged += FilterSettings_PropertyChanged;
-					break;
-			}
 		}
 
 		void MainWindow_Instance_CurrentAssemblyListChanged(object sender, NotifyCollectionChangedEventArgs e)
@@ -113,10 +99,9 @@ namespace ICSharpCode.ILSpy.Search
 			}
 		}
 
-		void FilterSettings_PropertyChanged(object sender, PropertyChangedEventArgs e)
+		internal void UpdateFilter(FilterSettings settings)
 		{
-			if (e.PropertyName != nameof(FilterSettings.ShowApiLevel))
-				return;
+			this.filterSettings = settings;
 
 			if (IsVisible)
 			{
@@ -248,7 +233,8 @@ namespace ICSharpCode.ILSpy.Search
 				currentSearch = null;
 			}
 
-			resultsComparer = DisplaySettingsPanel.CurrentDisplaySettings.SortResults ?
+			MainWindow mainWindow = MainWindow.Instance;
+			resultsComparer = mainWindow.CurrentDisplaySettings.SortResults ?
 				SearchResult.ComparerByFitness :
 				SearchResult.ComparerByName;
 			Results.Clear();
@@ -256,12 +242,11 @@ namespace ICSharpCode.ILSpy.Search
 			RunningSearch startedSearch = null;
 			if (!string.IsNullOrEmpty(searchTerm))
 			{
-				MainWindow mainWindow = MainWindow.Instance;
 
 				searchProgressBar.IsIndeterminate = true;
 				startedSearch = new RunningSearch(await mainWindow.CurrentAssemblyList.GetAllAssemblies(), searchTerm,
 					(SearchMode)searchModeComboBox.SelectedIndex, mainWindow.CurrentLanguage,
-					mainWindow.SessionSettings.FilterSettings.ShowApiLevel);
+					filterSettings.ShowApiLevel);
 				currentSearch = startedSearch;
 
 				await startedSearch.Run();
@@ -349,6 +334,14 @@ namespace ICSharpCode.ILSpy.Search
 					if (searchTerm.Length > 0)
 					{
 						searchTerm = NativeMethods.CommandLineToArgumentArray(searchTerm)[0];
+					}
+					else
+					{
+						// if searchTerm is only "@" or "prefix:",
+						// then we do not interpret it as prefix, but as searchTerm.
+						searchTerm = part;
+						prefix = null;
+						prefixLength = -1;
 					}
 
 					if (prefix == null || prefix.Length <= 2)
@@ -452,7 +445,7 @@ namespace ICSharpCode.ILSpy.Search
 				request.RegEx = regex;
 				request.SearchResultFactory = new SearchResultFactory(language);
 				request.TreeNodeFactory = new TreeNodeFactory();
-				request.DecompilerSettings = new DecompilationOptions().DecompilerSettings;
+				request.DecompilerSettings = MainWindow.Instance.CurrentDecompilerSettings;
 
 				return request;
 			}

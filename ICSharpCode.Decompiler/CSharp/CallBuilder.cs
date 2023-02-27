@@ -77,8 +77,8 @@ namespace ICSharpCode.Decompiler.CSharp
 				ResolveResult GetResolveResult(int index, TranslatedExpression expression)
 				{
 					var param = expectedParameters[index];
-					if (useImplicitlyTypedOut && param.IsOut)
-						return OutVarResolveResult.Instance;
+					if (useImplicitlyTypedOut && param.IsOut && expression.Type is ByReferenceType brt)
+						return new OutVarResolveResult(brt.ElementType);
 					return expression.ResolveResult;
 				}
 			}
@@ -539,6 +539,8 @@ namespace ICSharpCode.Decompiler.CSharp
 		public ExpressionWithResolveResult BuildDictionaryInitializerExpression(OpCode callOpCode, IMethod method,
 			InitializedObjectResolveResult target, IReadOnlyList<ILInstruction> indices, ILInstruction value = null)
 		{
+			if (method is null)
+				throw new ArgumentNullException(nameof(method));
 			ExpectedTargetDetails expectedTargetDetails = new ExpectedTargetDetails { CallOpCode = callOpCode };
 
 			var callArguments = new List<ILInstruction>();
@@ -1017,6 +1019,10 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				switch (errors)
 				{
+					case OverloadResolutionErrors.OutVarTypeMismatch:
+						Debug.Assert(argumentList.UseImplicitlyTypedOut);
+						argumentList.UseImplicitlyTypedOut = false;
+						continue;
 					case OverloadResolutionErrors.TypeInferenceFailed:
 						if ((allowedTransforms & CallTransformation.RequireTypeArguments) != 0)
 						{
@@ -1318,6 +1324,20 @@ namespace ICSharpCode.Decompiler.CSharp
 			foundMember = or.GetBestCandidateWithSubstitutedTypeArguments();
 			if (!IsAppropriateCallTarget(expectedTargetDetails, method, foundMember))
 				return OverloadResolutionErrors.AmbiguousMatch;
+			var map = or.GetArgumentToParameterMap();
+			for (int i = 0; i < arguments.Length; i++)
+			{
+				ResolveResult arg = arguments[i];
+				int parameterIndex = map[i];
+				if (arg is OutVarResolveResult rr && parameterIndex >= 0)
+				{
+					var param = foundMember.Parameters[parameterIndex];
+					var paramType = param.Type.UnwrapByRef();
+					if (!paramType.Equals(rr.OriginalVariableType))
+						return OverloadResolutionErrors.OutVarTypeMismatch;
+				}
+			}
+
 			return OverloadResolutionErrors.None;
 		}
 

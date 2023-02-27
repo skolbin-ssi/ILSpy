@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2014-2020 Daniel Grunwald
+// Copyright (c) 2014-2020 Daniel Grunwald
 // 
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this
 // software and associated documentation files (the "Software"), to deal in the Software
@@ -1901,7 +1901,16 @@ namespace ICSharpCode.Decompiler.CSharp
 			if (inst.EvalMode == CompoundEvalMode.EvaluatesToOldValue)
 			{
 				Debug.Assert(op == AssignmentOperatorType.Add || op == AssignmentOperatorType.Subtract);
-				Debug.Assert(inst.Value.MatchLdcI(1) || inst.Value.MatchLdcF4(1) || inst.Value.MatchLdcF8(1));
+#if DEBUG
+				if (target.Type is PointerType ptrType)
+				{
+					ILInstruction instValue = PointerArithmeticOffset.Detect(inst.Value, ptrType.ElementType, inst.CheckForOverflow);
+					Debug.Assert(instValue is not null);
+					Debug.Assert(instValue.MatchLdcI(1));
+				}
+				else
+					Debug.Assert(inst.Value.MatchLdcI(1) || inst.Value.MatchLdcF4(1) || inst.Value.MatchLdcF8(1));
+#endif
 				UnaryOperatorType unary;
 				ExpressionType exprType;
 				if (op == AssignmentOperatorType.Add)
@@ -3340,6 +3349,7 @@ namespace ICSharpCode.Decompiler.CSharp
 						{
 							var property = (IProperty)lastElement.Member;
 							Debug.Assert(property.IsIndexer);
+							Debug.Assert(property.Setter != null, $"Indexer property {property} has no setter");
 							elementsStack.Peek().Add(
 								new CallBuilder(this, typeSystem, settings)
 									.BuildDictionaryInitializerExpression(lastElement.OpCode, property.Setter, initObjRR, GetIndices(lastElement.Indices, indexVariables).ToList(), info.Values.Single())
@@ -3819,6 +3829,10 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				strToInt = null;
 				value = Translate(inst.Value);
+				if (inst.Type != null)
+				{
+					value = value.ConvertTo(inst.Type, this, allowImplicitConversion: true);
+				}
 				type = value.Type;
 			}
 
