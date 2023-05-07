@@ -127,6 +127,7 @@ namespace ICSharpCode.ILSpy.TextView
 			// SearchPanel
 			SearchPanel searchPanel = SearchPanel.Install(textEditor.TextArea);
 			searchPanel.RegisterCommands(Application.Current.MainWindow.CommandBindings);
+			searchPanel.SetResourceReference(SearchPanel.MarkerBrushProperty, ResourceKeys.SearchResultBackgroundBrush);
 			searchPanel.Loaded += (_, _) => {
 				// HACK: fix the hardcoded but misaligned margin of the search text box.
 				var textBox = searchPanel.VisualDescendants().OfType<TextBox>().FirstOrDefault();
@@ -139,13 +140,11 @@ namespace ICSharpCode.ILSpy.TextView
 			ShowLineMargin();
 			SetHighlightCurrentLine();
 
-			// add marker service & margin
-			textEditor.TextArea.TextView.BackgroundRenderers.Add(textMarkerService);
-			textEditor.TextArea.TextView.LineTransformers.Add(textMarkerService);
-
 			ContextMenuProvider.Add(this);
 
 			textEditor.TextArea.TextView.SetResourceReference(ICSharpCode.AvalonEdit.Rendering.TextView.LinkTextForegroundBrushProperty, ResourceKeys.LinkTextForegroundBrush);
+			textEditor.TextArea.TextView.SetResourceReference(ICSharpCode.AvalonEdit.Rendering.TextView.CurrentLineBackgroundProperty, ResourceKeys.CurrentLineBackgroundBrush);
+			textEditor.TextArea.TextView.SetResourceReference(ICSharpCode.AvalonEdit.Rendering.TextView.CurrentLineBorderProperty, ResourceKeys.CurrentLineBorderPen);
 
 			this.DataContextChanged += DecompilerTextView_DataContextChanged;
 		}
@@ -1364,15 +1363,8 @@ namespace ICSharpCode.ILSpy.TextView
 			string[] extensions,
 			string resourceName)
 		{
-			if (ThemeManager.Current.IsDarkMode)
-			{
-				resourceName += "-Dark";
-			}
-
-			resourceName += ".xshd";
-
 			Stream? resourceStream = typeof(DecompilerTextView).Assembly
-				.GetManifestResourceStream(typeof(DecompilerTextView), resourceName);
+				.GetManifestResourceStream(typeof(DecompilerTextView), resourceName + ".xshd");
 
 			if (resourceStream != null)
 			{
@@ -1382,7 +1374,9 @@ namespace ICSharpCode.ILSpy.TextView
 						using (resourceStream)
 						using (XmlTextReader reader = new XmlTextReader(resourceStream))
 						{
-							return HighlightingLoader.Load(reader, manager);
+							var highlightingDefinition = HighlightingLoader.Load(reader, manager);
+							ThemeManager.Current.ApplyHighlightingColors(highlightingDefinition);
+							return highlightingDefinition;
 						}
 					});
 			}
