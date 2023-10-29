@@ -286,12 +286,6 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 
 		protected internal override void VisitNewObj(NewObj inst)
 		{
-			if (TransformDecimalCtorToConstant(inst, out LdcDecimal decimalConstant))
-			{
-				context.Step("TransformDecimalCtorToConstant", inst);
-				inst.ReplaceWith(decimalConstant);
-				return;
-			}
 			Block block;
 			if (TransformSpanTCtorContainingStackAlloc(inst, out ILInstruction locallocSpan))
 			{
@@ -313,10 +307,10 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					ILInlining.InlineIfPossible(block, stmt.ChildIndex, context);
 				return;
 			}
-			if (TransformArrayInitializers.TransformSpanTArrayInitialization(inst, context, out block))
+			if (TransformArrayInitializers.TransformSpanTArrayInitialization(inst, context, out var replacement))
 			{
 				context.Step("TransformSpanTArrayInitialization: single-dim", inst);
-				inst.ReplaceWith(block);
+				inst.ReplaceWith(replacement);
 				return;
 			}
 			if (TransformDelegateCtorLdVirtFtnToLdVirtDelegate(inst, out LdVirtDelegate ldVirtDelegate))
@@ -417,43 +411,6 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			if (elementCountInstr == null || !elementCountInstr.UnwrapConv(ConversionKind.ZeroExtend).Match(elementCountInstr2).Success)
 				return false;
 			return true;
-		}
-
-		bool TransformDecimalCtorToConstant(NewObj inst, out LdcDecimal result)
-		{
-			IType t = inst.Method.DeclaringType;
-			result = null;
-			if (!t.IsKnownType(KnownTypeCode.Decimal))
-				return false;
-			var args = inst.Arguments;
-			if (args.Count == 1)
-			{
-				long val;
-				if (args[0].MatchLdcI(out val))
-				{
-					var paramType = inst.Method.Parameters[0].Type.GetDefinition()?.KnownTypeCode;
-					result = paramType switch {
-						KnownTypeCode.Int32 => new LdcDecimal(new decimal(unchecked((int)val))),
-						KnownTypeCode.UInt32 => new LdcDecimal(new decimal(unchecked((uint)val))),
-						KnownTypeCode.Int64 => new LdcDecimal(new decimal(val)),
-						KnownTypeCode.UInt64 => new LdcDecimal(new decimal(unchecked((ulong)val))),
-						_ => null
-					};
-					return result is not null;
-				}
-			}
-			else if (args.Count == 5)
-			{
-				int lo, mid, hi, isNegative, scale;
-				if (args[0].MatchLdcI4(out lo) && args[1].MatchLdcI4(out mid) &&
-					args[2].MatchLdcI4(out hi) && args[3].MatchLdcI4(out isNegative) &&
-					args[4].MatchLdcI4(out scale))
-				{
-					result = new LdcDecimal(new decimal(lo, mid, hi, isNegative != 0, (byte)scale));
-					return true;
-				}
-			}
-			return false;
 		}
 
 		bool TransformDecimalFieldToConstant(LdObj inst, out LdcDecimal result)
@@ -557,7 +514,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 					return;
 				}
 			}
-			if (MatchInstruction.IsPatternMatch(inst.Condition, out _)
+			if (MatchInstruction.IsPatternMatch(inst.Condition, out _, context.Settings)
 				&& inst.TrueInst.MatchLdcI4(1) && inst.FalseInst.MatchLdcI4(0))
 			{
 				context.Step("match(x) ? true : false -> match(x)", inst);

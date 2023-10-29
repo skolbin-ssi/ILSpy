@@ -130,6 +130,7 @@ namespace ICSharpCode.Decompiler
 				staticLocalFunctions = false;
 				ranges = false;
 				switchExpressions = false;
+				recursivePatternMatching = false;
 			}
 			if (languageVersion < CSharp.LanguageVersion.CSharp9_0)
 			{
@@ -141,6 +142,8 @@ namespace ICSharpCode.Decompiler
 				withExpressions = false;
 				usePrimaryConstructorSyntax = false;
 				covariantReturns = false;
+				relationalPatterns = false;
+				patternCombinators = false;
 			}
 			if (languageVersion < CSharp.LanguageVersion.CSharp10_0)
 			{
@@ -150,22 +153,27 @@ namespace ICSharpCode.Decompiler
 			if (languageVersion < CSharp.LanguageVersion.CSharp11_0)
 			{
 				parameterNullCheck = false;
-				lifetimeAnnotations = false;
+				scopedRef = false;
 				requiredMembers = false;
+				numericIntPtr = false;
+				utf8StringLiterals = false;
+				unsignedRightShift = false;
+				checkedOperators = false;
 			}
 		}
 
 		public CSharp.LanguageVersion GetMinimumRequiredVersion()
 		{
-			if (parameterNullCheck || lifetimeAnnotations || requiredMembers)
+			if (parameterNullCheck || scopedRef || requiredMembers || numericIntPtr || utf8StringLiterals || unsignedRightShift || checkedOperators)
 				return CSharp.LanguageVersion.CSharp11_0;
 			if (fileScopedNamespaces || recordStructs)
 				return CSharp.LanguageVersion.CSharp10_0;
 			if (nativeIntegers || initAccessors || functionPointers || forEachWithGetEnumeratorExtension
-				|| recordClasses || withExpressions || usePrimaryConstructorSyntax || covariantReturns)
+				|| recordClasses || withExpressions || usePrimaryConstructorSyntax || covariantReturns
+				|| relationalPatterns || patternCombinators)
 				return CSharp.LanguageVersion.CSharp9_0;
 			if (nullableReferenceTypes || readOnlyMethods || asyncEnumerator || asyncUsingAndForEachStatement
-				|| staticLocalFunctions || ranges || switchExpressions)
+				|| staticLocalFunctions || ranges || switchExpressions || recursivePatternMatching)
 				return CSharp.LanguageVersion.CSharp8_0;
 			if (introduceUnmanagedConstraint || tupleComparisons || stackAllocInitializers
 				|| patternBasedFixedStatement)
@@ -206,6 +214,24 @@ namespace ICSharpCode.Decompiler
 				if (nativeIntegers != value)
 				{
 					nativeIntegers = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool numericIntPtr = true;
+
+		/// <summary>
+		/// Treat <c>IntPtr</c>/<c>UIntPtr</c> as <c>nint</c>/<c>nuint</c>.
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.4")]
+		[Description("DecompilerSettings.NumericIntPtr")]
+		public bool NumericIntPtr {
+			get { return numericIntPtr; }
+			set {
+				if (numericIntPtr != value)
+				{
+					numericIntPtr = value;
 					OnPropertyChanged();
 				}
 			}
@@ -338,23 +364,29 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
-		bool lifetimeAnnotations = true;
+		bool scopedRef = true;
 
 		/// <summary>
-		/// Use C# 9 <c>delegate* unmanaged</c> types.
-		/// If this option is disabled, function pointers will instead be decompiled with type `IntPtr`.
+		/// Use C# 11 <c>scoped</c> modifier.
 		/// </summary>
 		[Category("C# 11.0 / VS 2022.4")]
-		[Description("DecompilerSettings.LifetimeAnnotations")]
-		public bool LifetimeAnnotations {
-			get { return lifetimeAnnotations; }
+		[Description("DecompilerSettings.ScopedRef")]
+		public bool ScopedRef {
+			get { return scopedRef; }
 			set {
-				if (lifetimeAnnotations != value)
+				if (scopedRef != value)
 				{
-					lifetimeAnnotations = value;
+					scopedRef = value;
 					OnPropertyChanged();
 				}
 			}
+		}
+
+		[Obsolete("Renamed to ScopedRef. This property will be removed in a future version of the decompiler.")]
+		[Browsable(false)]
+		public bool LifetimeAnnotations {
+			get { return ScopedRef; }
+			set { ScopedRef = value; }
 		}
 
 		bool requiredMembers = true;
@@ -416,9 +448,10 @@ namespace ICSharpCode.Decompiler
 		/// <summary>
 		/// Use C# 11 preview parameter null-checking (<code>string param!!</code>).
 		/// </summary>
-		[Category("C# 11.0 / VS 2022.1")]
+		[Category("C# 11.0 / VS 2022.4")]
 		[Description("DecompilerSettings.ParameterNullCheck")]
 		[Browsable(false)]
+		[Obsolete("This feature did not make it into C# 11, and may be removed in a future version of the decompiler.")]
 		public bool ParameterNullCheck {
 			get { return parameterNullCheck; }
 			set {
@@ -1155,6 +1188,78 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool utf8StringLiterals = true;
+
+		/// <summary>
+		/// Gets/Sets whether to use C# 11.0 UTF-8 string literals
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.4")]
+		[Description("DecompilerSettings.Utf8StringLiterals")]
+		public bool Utf8StringLiterals {
+			get { return utf8StringLiterals; }
+			set {
+				if (utf8StringLiterals != value)
+				{
+					utf8StringLiterals = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool switchOnReadOnlySpanChar = true;
+
+		/// <summary>
+		/// Gets/Sets whether to use C# 11.0 switch on (ReadOnly)Span&lt;char&gt;
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.4")]
+		[Description("DecompilerSettings.SwitchOnReadOnlySpanChar")]
+		public bool SwitchOnReadOnlySpanChar {
+			get { return switchOnReadOnlySpanChar; }
+			set {
+				if (switchOnReadOnlySpanChar != value)
+				{
+					switchOnReadOnlySpanChar = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool unsignedRightShift = true;
+
+		/// <summary>
+		/// Gets/Sets whether to use C# 11.0 unsigned right shift operator.
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.4")]
+		[Description("DecompilerSettings.UnsignedRightShift")]
+		public bool UnsignedRightShift {
+			get { return unsignedRightShift; }
+			set {
+				if (unsignedRightShift != value)
+				{
+					unsignedRightShift = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool checkedOperators = true;
+
+		/// <summary>
+		/// Gets/Sets whether to use C# 11.0 user-defined checked operators.
+		/// </summary>
+		[Category("C# 11.0 / VS 2022.4")]
+		[Description("DecompilerSettings.CheckedOperators")]
+		public bool CheckedOperators {
+			get { return checkedOperators; }
+			set {
+				if (checkedOperators != value)
+				{
+					checkedOperators = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		bool showXmlDocumentation = true;
 
 		/// <summary>
@@ -1590,6 +1695,60 @@ namespace ICSharpCode.Decompiler
 				if (patternMatching != value)
 				{
 					patternMatching = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool recursivePatternMatching = true;
+
+		/// <summary>
+		/// Gets/Sets whether C# 8.0 recursive patterns should be detected.
+		/// </summary>
+		[Category("C# 8.0 / VS 2019")]
+		[Description("DecompilerSettings.RecursivePatternMatching")]
+		public bool RecursivePatternMatching {
+			get { return recursivePatternMatching; }
+			set {
+				if (recursivePatternMatching != value)
+				{
+					recursivePatternMatching = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool patternCombinators = true;
+
+		/// <summary>
+		/// Gets/Sets whether C# 9.0 and, or, not patterns should be detected.
+		/// </summary>
+		[Category("C# 9.0 / VS 2019.8")]
+		[Description("DecompilerSettings.PatternCombinators")]
+		public bool PatternCombinators {
+			get { return patternCombinators; }
+			set {
+				if (patternCombinators != value)
+				{
+					patternCombinators = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool relationalPatterns = true;
+
+		/// <summary>
+		/// Gets/Sets whether C# 9.0 relational patterns should be detected.
+		/// </summary>
+		[Category("C# 9.0 / VS 2019.8")]
+		[Description("DecompilerSettings.RelationalPatterns")]
+		public bool RelationalPatterns {
+			get { return relationalPatterns; }
+			set {
+				if (relationalPatterns != value)
+				{
+					relationalPatterns = value;
 					OnPropertyChanged();
 				}
 			}

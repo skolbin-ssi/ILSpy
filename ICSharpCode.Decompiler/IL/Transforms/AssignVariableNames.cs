@@ -58,6 +58,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		Dictionary<MethodDefinitionHandle, string> localFunctionMapping;
 		HashSet<ILVariable> loopCounters;
 		const char maxLoopVariableName = 'n';
+		int numDisplayClassLocals;
 
 		public void Run(ILFunction function, ILTransformContext context)
 		{
@@ -151,6 +152,7 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 						AddExistingName(reservedVariableNames, p.Name);
 				}
 			}
+			numDisplayClassLocals = 0;
 			foreach (ILFunction f in function.Descendants.OfType<ILFunction>().Reverse())
 			{
 				PerformAssignment(f);
@@ -195,13 +197,14 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 		{
 			// remove unused variables before assigning names
 			function.Variables.RemoveDead();
-			int numDisplayClassLocals = 0;
 			Dictionary<int, string> assignedLocalSignatureIndices = new Dictionary<int, string>();
 			foreach (var v in function.Variables.OrderBy(v => v.Name))
 			{
 				switch (v.Kind)
 				{
-					case VariableKind.Parameter: // ignore
+					case VariableKind.Parameter:
+						// Parameter names are handled in ILReader.CreateILVariable
+						// and CSharpDecompiler.FixParameterNames
 						break;
 					case VariableKind.InitializerTarget: // keep generated names
 						AddExistingName(reservedVariableNames, v.Name);
@@ -325,9 +328,9 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			return false;
 		}
 
-		static bool IsValidName(string varName)
+		internal static bool IsValidName(string varName)
 		{
-			if (string.IsNullOrEmpty(varName))
+			if (string.IsNullOrWhiteSpace(varName))
 				return false;
 			if (!(char.IsLetter(varName[0]) || varName[0] == '_'))
 				return false;
@@ -431,12 +434,25 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 			}
 			if (string.IsNullOrEmpty(proposedName))
 			{
-				var proposedNameForStores = variable.StoreInstructions.OfType<StLoc>()
-					.Select(expr => GetNameFromInstruction(expr.Value))
-					.Except(currentLowerCaseTypeOrMemberNames).ToList();
+				var proposedNameForStores = new HashSet<string>();
+				foreach (var store in variable.StoreInstructions)
+				{
+					if (store is StLoc stloc)
+					{
+						var name = GetNameFromInstruction(stloc.Value);
+						if (!currentLowerCaseTypeOrMemberNames.Contains(name))
+							proposedNameForStores.Add(name);
+					}
+					else if (store is MatchInstruction match && match.SlotInfo == MatchInstruction.SubPatternsSlot)
+					{
+						var name = GetNameFromInstruction(match.TestedOperand);
+						if (!currentLowerCaseTypeOrMemberNames.Contains(name))
+							proposedNameForStores.Add(name);
+					}
+				}
 				if (proposedNameForStores.Count == 1)
 				{
-					proposedName = proposedNameForStores[0];
+					proposedName = proposedNameForStores.Single();
 				}
 			}
 			if (string.IsNullOrEmpty(proposedName))

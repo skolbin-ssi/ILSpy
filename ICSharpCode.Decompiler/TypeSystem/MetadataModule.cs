@@ -402,8 +402,9 @@ namespace ICSharpCode.Decompiler.TypeSystem
 		IType ResolveDeclaringType(EntityHandle declaringTypeReference, GenericContext context)
 		{
 			// resolve without substituting dynamic/tuple types
-			var ty = ResolveType(declaringTypeReference, context,
-				options & ~(TypeSystemOptions.Dynamic | TypeSystemOptions.Tuple | TypeSystemOptions.NullabilityAnnotations));
+			const TypeSystemOptions removedOptions = TypeSystemOptions.Dynamic | TypeSystemOptions.Tuple
+				| TypeSystemOptions.NullabilityAnnotations | TypeSystemOptions.NativeIntegers | TypeSystemOptions.NativeIntegersWithoutAttribute;
+			var ty = ResolveType(declaringTypeReference, context, options & ~removedOptions);
 			// but substitute tuple types in type arguments:
 			ty = ApplyAttributeTypeVisitor.ApplyAttributesToType(ty, Compilation, null, metadata, options, Nullability.Oblivious, typeChildrenOnly: true);
 			return ty;
@@ -754,7 +755,9 @@ namespace ICSharpCode.Decompiler.TypeSystem
 				case HandleKind.TypeDefinition:
 				case HandleKind.TypeSpecification:
 				case HandleKind.ExportedType:
-					return ResolveType(entityHandle, context).GetDefinition();
+					// Using ResolveDeclaringType() here because ResolveType() might return
+					// nint/nuint which are SpecialTypes without a definition.
+					return ResolveDeclaringType(entityHandle, context).GetDefinition();
 				case HandleKind.MemberReference:
 					var memberReferenceHandle = (MemberReferenceHandle)entityHandle;
 					switch (metadata.GetMemberReference(memberReferenceHandle).GetKind())

@@ -617,6 +617,14 @@ namespace ICSharpCode.Decompiler.CSharp
 				.WithRR(new ConstantResolveResult(compilation.FindType(KnownTypeCode.String), inst.Value));
 		}
 
+		protected internal override TranslatedExpression VisitLdStrUtf8(LdStrUtf8 inst, TranslationContext context)
+		{
+			var type = new ParameterizedType(compilation.FindType(KnownTypeCode.ReadOnlySpanOfT), new[] { compilation.FindType(KnownTypeCode.Byte) });
+			return new PrimitiveExpression(inst.Value, LiteralFormat.Utf8Literal)
+				.WithILInstruction(inst)
+				.WithRR(new ConstantResolveResult(type, inst.Value));
+		}
+
 		protected internal override TranslatedExpression VisitLdNull(LdNull inst, TranslationContext context)
 		{
 			return GetDefaultValueExpression(SpecialType.NullType).WithILInstruction(inst);
@@ -1200,9 +1208,9 @@ namespace ICSharpCode.Decompiler.CSharp
 				case BinaryNumericOperator.BitXor:
 					return HandleBinaryNumeric(inst, BinaryOperatorType.ExclusiveOr, context);
 				case BinaryNumericOperator.ShiftLeft:
-					return HandleShift(inst, BinaryOperatorType.ShiftLeft);
+					return HandleShift(inst, BinaryOperatorType.ShiftLeft, context);
 				case BinaryNumericOperator.ShiftRight:
-					return HandleShift(inst, BinaryOperatorType.ShiftRight);
+					return HandleShift(inst, BinaryOperatorType.ShiftRight, context);
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
@@ -1579,7 +1587,7 @@ namespace ICSharpCode.Decompiler.CSharp
 
 			var rr = resolverWithOverflowCheck.ResolveBinaryOperator(op, left.ResolveResult, right.ResolveResult);
 			if (rr.IsError || NullableType.GetUnderlyingType(rr.Type).GetStackType() != inst.UnderlyingResultType
-				|| !IsCompatibleWithSign(left.Type, inst.Sign) || !IsCompatibleWithSign(right.Type, inst.Sign))
+				|| !IsCompatibleWithSign(rr.Type, inst.Sign))
 			{
 				// Left and right operands are incompatible, so convert them to a common type
 				Sign sign = inst.Sign;
@@ -1721,13 +1729,14 @@ namespace ICSharpCode.Decompiler.CSharp
 				case BinaryOperatorType.ExclusiveOr:
 				case BinaryOperatorType.ShiftLeft:
 				case BinaryOperatorType.ShiftRight:
+				case BinaryOperatorType.UnsignedShiftRight:
 					return false;
 				default:
 					return true;
 			}
 		}
 
-		TranslatedExpression HandleShift(BinaryNumericInstruction inst, BinaryOperatorType op)
+		TranslatedExpression HandleShift(BinaryNumericInstruction inst, BinaryOperatorType op, TranslationContext context)
 		{
 			var left = Translate(inst.Left);
 			var right = Translate(inst.Right);
@@ -1736,10 +1745,27 @@ namespace ICSharpCode.Decompiler.CSharp
 
 			Sign sign = inst.Sign;
 			var leftUType = NullableType.GetUnderlyingType(left.Type);
-			if (leftUType.IsCSharpSmallIntegerType() && sign != Sign.Unsigned && inst.UnderlyingResultType == StackType.I4)
+			bool couldUseUnsignedRightShift = (
+				sign == Sign.Unsigned && op == BinaryOperatorType.ShiftRight && settings.UnsignedRightShift
+				&& (leftUType.IsCSharpPrimitiveIntegerType() || leftUType.IsCSharpNativeIntegerType())
+				// If we need to cast to unsigned anyway, don't use >>> operator.
+				&& context.TypeHint.GetSign() != Sign.Unsigned
+			);
+			if (leftUType.IsCSharpSmallIntegerType() && inst.UnderlyingResultType == StackType.I4 &&
+				(sign != Sign.Unsigned || couldUseUnsignedRightShift))
 			{
 				// With small integer types, C# will promote to int and perform signed shifts.
 				// We thus don't need any casts in this case.
+				// The >>> operator also promotes to signed int, but then performs an unsigned shift.
+				if (sign == Sign.Unsigned)
+				{
+					op = BinaryOperatorType.UnsignedShiftRight;
+				}
+			}
+			else if (couldUseUnsignedRightShift && leftUType.GetSize() == inst.UnderlyingResultType.GetSize() && leftUType.GetSign() == Sign.Signed)
+			{
+				// Use C# 11 unsigned right shift operator. We don't need any casts in this case.
+				op = BinaryOperatorType.UnsignedShiftRight;
 			}
 			else
 			{
@@ -1784,6 +1810,15 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				target = Translate(inst.Target, loadType);
 			}
+			var opType = OperatorDeclaration.GetOperatorType(inst.Method.Name);
+			if (opType != null && OperatorDeclaration.IsChecked(opType.Value))
+			{
+				target.Expression.AddAnnotation(AddCheckedBlocks.CheckedAnnotation);
+			}
+			else if (ReplaceMethodCallsWithOperators.HasCheckedEquivalent(inst.Method))
+			{
+				target.Expression.AddAnnotation(AddCheckedBlocks.UncheckedAnnotation);
+			}
 			if (UserDefinedCompoundAssign.IsStringConcat(inst.Method))
 			{
 				Debug.Assert(inst.Method.Parameters.Count == 2);
@@ -1796,7 +1831,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			else if (inst.Method.Parameters.Count == 2)
 			{
 				var value = Translate(inst.Value).ConvertTo(inst.Method.Parameters[1].Type, this);
-				AssignmentOperatorType? op = GetAssignmentOperatorTypeFromMetadataName(inst.Method.Name);
+				AssignmentOperatorType? op = GetAssignmentOperatorTypeFromMetadataName(inst.Method.Name, settings);
 				Debug.Assert(op != null);
 
 				return new AssignmentExpression(target, op.Value, value)
@@ -1814,7 +1849,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			}
 		}
 
-		internal static AssignmentOperatorType? GetAssignmentOperatorTypeFromMetadataName(string name)
+		internal static AssignmentOperatorType? GetAssignmentOperatorTypeFromMetadataName(string name, DecompilerSettings settings)
 		{
 			switch (name)
 			{
@@ -1838,6 +1873,8 @@ namespace ICSharpCode.Decompiler.CSharp
 					return AssignmentOperatorType.ShiftLeft;
 				case "op_RightShift":
 					return AssignmentOperatorType.ShiftRight;
+				case "op_UnsignedRightShift" when settings.UnsignedRightShift:
+					return AssignmentOperatorType.UnsignedShiftRight;
 				default:
 					return null;
 			}
@@ -1848,8 +1885,10 @@ namespace ICSharpCode.Decompiler.CSharp
 			switch (name)
 			{
 				case "op_Increment":
+				case "op_CheckedIncrement":
 					return isPostfix ? UnaryOperatorType.PostIncrement : UnaryOperatorType.Increment;
 				case "op_Decrement":
+				case "op_CheckedDecrement":
 					return isPostfix ? UnaryOperatorType.PostDecrement : UnaryOperatorType.Decrement;
 				default:
 					return null;
@@ -1879,7 +1918,22 @@ namespace ICSharpCode.Decompiler.CSharp
 				case BinaryNumericOperator.ShiftLeft:
 					return HandleCompoundShift(inst, AssignmentOperatorType.ShiftLeft);
 				case BinaryNumericOperator.ShiftRight:
-					return HandleCompoundShift(inst, AssignmentOperatorType.ShiftRight);
+					if (inst.Sign == Sign.Unsigned && inst.Type.GetSign() == Sign.Signed)
+					{
+						Debug.Assert(settings.UnsignedRightShift);
+						return HandleCompoundShift(inst, AssignmentOperatorType.UnsignedShiftRight);
+					}
+					else if (inst.Sign == Sign.Unsigned && inst.Type.IsCSharpSmallIntegerType() && settings.UnsignedRightShift)
+					{
+						// For small unsigned integer types promoted to signed int, the sign bit will be zero,
+						// so there is no difference between signed and unsigned shift.
+						// However the IL still indicates which C# operator was used, so preserve that if the setting allows us to.
+						return HandleCompoundShift(inst, AssignmentOperatorType.UnsignedShiftRight);
+					}
+					else
+					{
+						return HandleCompoundShift(inst, AssignmentOperatorType.ShiftRight);
+					}
 				default:
 					throw new ArgumentOutOfRangeException();
 			}
@@ -2743,6 +2797,17 @@ namespace ICSharpCode.Decompiler.CSharp
 				{
 					target = target.ConvertTo(new ByReferenceType(loadType), this);
 				}
+				else if (!loadType.IsUnmanagedType(settings.IntroduceUnmanagedConstraint))
+				{
+					// Use: Unsafe.Read<T>(void*)
+					target = target.ConvertTo(new PointerType(compilation.FindType(KnownTypeCode.Void)), this, allowImplicitConversion: true);
+					return CallUnsafeIntrinsic(
+						name: "Read",
+						arguments: new Expression[] { target },
+						returnType: loadType,
+						typeArguments: new IType[] { loadType }
+					);
+				}
 				else
 				{
 					target = target.ConvertTo(new PointerType(loadType), this);
@@ -2761,9 +2826,9 @@ namespace ICSharpCode.Decompiler.CSharp
 
 		protected internal override TranslatedExpression VisitStObj(StObj inst, TranslationContext context)
 		{
-			if (inst.UnalignedPrefix != 0)
+			if (inst.UnalignedPrefix != 0 || (inst.Target.ResultType != StackType.Ref && !inst.Type.IsUnmanagedType(settings.IntroduceUnmanagedConstraint)))
 			{
-				return UnalignedStObj(inst);
+				return StObjViaHelperCall(inst);
 			}
 
 			IType pointerTypeHint = inst.Target.ResultType == StackType.Ref ? new ByReferenceType(inst.Type) : (IType)new PointerType(inst.Type);
@@ -2838,14 +2903,16 @@ namespace ICSharpCode.Decompiler.CSharp
 			}
 		}
 
-		private TranslatedExpression UnalignedStObj(StObj inst)
+		private TranslatedExpression StObjViaHelperCall(StObj inst)
 		{
 			// "unaligned.1; stobj" -> decompile to a call of
 			//    Unsafe.WriteUnaligned<T>(void*, T)
 			// or Unsafe.WriteUnaligned<T>(ref byte, T)
+			// "stobj ManagedType" -> decompile to a call of
+			//    Unsafe.Write<T>(void*, T)
 			var pointer = Translate(inst.Target);
 			var value = Translate(inst.Value, typeHint: inst.Type);
-			if (pointer.Expression is DirectionExpression)
+			if (pointer.Expression is DirectionExpression && inst.UnalignedPrefix != 0)
 			{
 				pointer = pointer.ConvertTo(new ByReferenceType(compilation.FindType(KnownTypeCode.Byte)), this);
 			}
@@ -2857,12 +2924,24 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				value = value.ConvertTo(inst.Type, this);
 			}
-			return CallUnsafeIntrinsic(
-				name: "WriteUnaligned",
-				arguments: new Expression[] { pointer, value },
-				returnType: compilation.FindType(KnownTypeCode.Void),
-				inst: inst
-			);
+			if (inst.UnalignedPrefix != 0)
+			{
+				return CallUnsafeIntrinsic(
+					name: "WriteUnaligned",
+					arguments: new Expression[] { pointer, value },
+					returnType: compilation.FindType(KnownTypeCode.Void),
+					inst: inst
+				);
+			}
+			else
+			{
+				return CallUnsafeIntrinsic(
+					name: "Write",
+					arguments: new Expression[] { pointer, value },
+					returnType: inst.Type,
+					inst: inst
+				);
+			}
 		}
 
 		protected internal override TranslatedExpression VisitLdLen(LdLen inst, TranslationContext context)
@@ -3819,7 +3898,7 @@ namespace ICSharpCode.Decompiler.CSharp
 			{
 				value = Translate(strToInt.Argument)
 					.ConvertTo(
-						typeSystem.FindType(KnownTypeCode.String),
+						strToInt.ExpectedType,
 						this,
 						allowImplicitConversion: false // switch-expression does not support implicit conversions
 					);
@@ -4483,40 +4562,130 @@ namespace ICSharpCode.Decompiler.CSharp
 		protected internal override TranslatedExpression VisitMatchInstruction(MatchInstruction inst, TranslationContext context)
 		{
 			var left = Translate(inst.TestedOperand);
-			var right = TranslatePattern(inst);
+			// remove boxing conversion if possible, however, we still need a cast in
+			// test case PatternMatching.GenericValueTypePatternStringRequiresCastToObject
+			if (left.ResolveResult is ConversionResolveResult crr
+				&& crr.Conversion.IsBoxingConversion
+				&& left.Expression is CastExpression castExpr
+				&& (crr.Input.Type.IsReferenceType != false || inst.Variable.Type.IsReferenceType == false))
+			{
+				left = left.UnwrapChild(castExpr.Expression);
+			}
+			var right = TranslatePattern(inst, left.Type);
 
 			return new BinaryOperatorExpression(left, BinaryOperatorType.IsPattern, right)
 				.WithRR(new ResolveResult(compilation.FindType(KnownTypeCode.Boolean)))
 				.WithILInstruction(inst);
 		}
 
-		ExpressionWithILInstruction TranslatePattern(ILInstruction pattern)
+		ExpressionWithILInstruction TranslatePattern(ILInstruction pattern, IType leftHandType)
 		{
 			switch (pattern)
 			{
 				case MatchInstruction matchInstruction:
-					if (!matchInstruction.CheckType)
-						throw new NotImplementedException();
 					if (matchInstruction.IsDeconstructCall)
 						throw new NotImplementedException();
 					if (matchInstruction.IsDeconstructTuple)
 						throw new NotImplementedException();
-					if (matchInstruction.SubPatterns.Any())
-						throw new NotImplementedException();
-					if (matchInstruction.HasDesignator)
+					if (matchInstruction.SubPatterns.Count > 0 || (matchInstruction.CheckNotNull && !matchInstruction.CheckType))
+					{
+						RecursivePatternExpression recursivePatternExpression = new();
+						if (matchInstruction.CheckType)
+						{
+							recursivePatternExpression.Type = ConvertType(matchInstruction.Variable.Type);
+						}
+						else
+						{
+							Debug.Assert(matchInstruction.CheckNotNull || matchInstruction.Variable.Type.IsReferenceType == false);
+						}
+						foreach (var subPattern in matchInstruction.SubPatterns)
+						{
+							if (!MatchInstruction.IsPatternMatch(subPattern, out var testedOperand, settings))
+							{
+								Debug.Fail("Invalid sub pattern");
+								continue;
+							}
+							IMember member;
+							if (testedOperand is CallInstruction call)
+							{
+								member = call.Method.AccessorOwner;
+							}
+							else if (testedOperand.MatchLdFld(out _, out var f))
+							{
+								member = f;
+							}
+							else
+							{
+								Debug.Fail("Invalid sub pattern");
+								continue;
+							}
+							recursivePatternExpression.SubPatterns.Add(
+								new NamedArgumentExpression { Name = member.Name, Expression = TranslatePattern(subPattern, member.ReturnType) }
+									.WithRR(new MemberResolveResult(null, member))
+							);
+						}
+						if (matchInstruction.HasDesignator)
+						{
+							SingleVariableDesignation designator = new SingleVariableDesignation { Identifier = matchInstruction.Variable.Name };
+							designator.AddAnnotation(new ILVariableResolveResult(matchInstruction.Variable));
+							recursivePatternExpression.Designation = designator;
+						}
+						return recursivePatternExpression.WithILInstruction(matchInstruction);
+					}
+					else if (matchInstruction.HasDesignator || !matchInstruction.CheckType)
 					{
 						SingleVariableDesignation designator = new SingleVariableDesignation { Identifier = matchInstruction.Variable.Name };
 						designator.AddAnnotation(new ILVariableResolveResult(matchInstruction.Variable));
+						AstType type;
+						if (matchInstruction.CheckType)
+						{
+							type = ConvertType(matchInstruction.Variable.Type);
+						}
+						else
+						{
+							Debug.Assert(matchInstruction.IsVar);
+							type = new SimpleType("var");
+						}
 						return new DeclarationExpression {
-							Type = ConvertType(matchInstruction.Variable.Type),
+							Type = type,
 							Designation = designator
 						}.WithILInstruction(matchInstruction);
 					}
 					else
 					{
+						Debug.Assert(matchInstruction.CheckType);
 						return new TypeReferenceExpression(ConvertType(matchInstruction.Variable.Type))
 							.WithILInstruction(matchInstruction);
 					}
+				case Comp comp:
+					var constantValue = Translate(comp.Right, leftHandType);
+					switch (comp.Kind)
+					{
+						case ComparisonKind.Equality:
+							return constantValue
+								.WithILInstruction(comp);
+						case ComparisonKind.Inequality:
+							return new UnaryOperatorExpression(UnaryOperatorType.PatternNot, constantValue)
+								.WithILInstruction(comp);
+						case ComparisonKind.LessThan:
+							return new UnaryOperatorExpression(UnaryOperatorType.PatternRelationalLessThan, constantValue)
+								.WithILInstruction(comp);
+						case ComparisonKind.LessThanOrEqual:
+							return new UnaryOperatorExpression(UnaryOperatorType.PatternRelationalLessThanOrEqual, constantValue)
+								.WithILInstruction(comp);
+						case ComparisonKind.GreaterThan:
+							return new UnaryOperatorExpression(UnaryOperatorType.PatternRelationalGreaterThan, constantValue)
+								.WithILInstruction(comp);
+						case ComparisonKind.GreaterThanOrEqual:
+							return new UnaryOperatorExpression(UnaryOperatorType.PatternRelationalGreaterThanOrEqual, constantValue)
+								.WithILInstruction(comp);
+						default:
+							throw new InvalidOperationException("Unexpected comparison kind: " + comp.Kind);
+					}
+				case Call call when MatchInstruction.IsCallToOpEquality(call, KnownTypeCode.String):
+					return Translate(call.Arguments[1]);
+				case Call call when MatchInstruction.IsCallToOpEquality(call, KnownTypeCode.Decimal):
+					return Translate(call.Arguments[1]);
 				default:
 					throw new NotImplementedException();
 			}

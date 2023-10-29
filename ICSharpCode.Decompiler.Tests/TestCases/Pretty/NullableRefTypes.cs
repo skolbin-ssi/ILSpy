@@ -1,5 +1,6 @@
 ﻿#nullable enable
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
@@ -110,5 +111,77 @@ namespace ICSharpCode.Decompiler.Tests.TestCases.Pretty
 		private int[]? _buckets;
 		private Entry[]? _entries;
 		private IEqualityComparer<TKey>? _comparer;
+	}
+
+	public class T05_NullableUnconstrainedGeneric
+	{
+		public static TValue? Default<TValue>()
+		{
+			return default(TValue);
+		}
+
+		public static void CallDefault()
+		{
+#if OPT
+			string? format = Default<string>();
+#else
+			// With optimizations it's a stack slot, so ILSpy picks a nullable type.
+			// Without optimizations it's a local, so the nullability is missing.
+			string format = Default<string>();
+#endif
+			int num = Default<int>();
+#if CS110 && NET70
+			nint num2 = Default<nint>();
+#else
+			int num2 = Default<int>();
+#endif
+			(object, string) tuple = Default<(object, string)>();
+			Console.WriteLine("No inlining");
+			Console.WriteLine(format, num, num2, tuple);
+		}
+	}
+
+	public class T06_ExplicitInterfaceImplementation : IEnumerable<KeyValuePair<string, string?>>, IEnumerable
+	{
+		// TODO: declaring type is not yet rendered with nullability annotations from the base type
+		IEnumerator<KeyValuePair<string, string?>> IEnumerable<KeyValuePair<string, string>>.GetEnumerator()
+		{
+			yield return new KeyValuePair<string, string>("a", "b");
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			throw new NotImplementedException();
+		}
+	}
+
+	public class T07_ExplicitInterfaceImplementation : IEnumerator<KeyValuePair<string, string?>>, IEnumerator, IDisposable
+	{
+		KeyValuePair<string, string?> IEnumerator<KeyValuePair<string, string>>.Current {
+			get {
+				throw new NotImplementedException();
+			}
+		}
+
+		object IEnumerator.Current {
+			get {
+				throw new NotImplementedException();
+			}
+		}
+
+		void IDisposable.Dispose()
+		{
+			throw new NotImplementedException();
+		}
+
+		bool IEnumerator.MoveNext()
+		{
+			throw new NotImplementedException();
+		}
+
+		void IEnumerator.Reset()
+		{
+			throw new NotImplementedException();
+		}
 	}
 }
