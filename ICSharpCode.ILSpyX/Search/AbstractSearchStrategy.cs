@@ -52,7 +52,7 @@ namespace ICSharpCode.ILSpyX.Search
 		public AssemblySearchKind AssemblySearchKind;
 		public MemberSearchKind MemberSearchKind;
 		public string[] Keywords;
-		public Regex RegEx;
+		public Regex? RegEx;
 		public bool FullNameSearch;
 		public bool OmitGenerics;
 		public string InNamespace;
@@ -62,7 +62,7 @@ namespace ICSharpCode.ILSpyX.Search
 	public abstract class AbstractSearchStrategy
 	{
 		protected readonly string[] searchTerm;
-		protected readonly Regex regex;
+		protected readonly Regex? regex;
 		protected readonly bool fullNameSearch;
 		protected readonly bool omitGenerics;
 		protected readonly SearchRequest searchRequest;
@@ -78,7 +78,7 @@ namespace ICSharpCode.ILSpyX.Search
 			this.omitGenerics = request.OmitGenerics;
 		}
 
-		public abstract void Search(PEFile module, CancellationToken cancellationToken);
+		public abstract void Search(MetadataFile module, CancellationToken cancellationToken);
 
 		protected virtual bool IsMatch(string name)
 		{

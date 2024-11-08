@@ -22,6 +22,7 @@ using System.Windows.Threading;
 
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
+using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy.Properties;
 
 namespace ICSharpCode.ILSpy.TreeNodes
@@ -31,10 +32,10 @@ namespace ICSharpCode.ILSpy.TreeNodes
 	/// </summary>
 	sealed class ReferenceFolderTreeNode : ILSpyTreeNode
 	{
-		readonly PEFile module;
+		readonly MetadataFile module;
 		readonly AssemblyTreeNode parentAssembly;
 
-		public ReferenceFolderTreeNode(PEFile module, AssemblyTreeNode parentAssembly)
+		public ReferenceFolderTreeNode(MetadataFile module, AssemblyTreeNode parentAssembly)
 		{
 			this.module = module;
 			this.parentAssembly = parentAssembly;
@@ -48,22 +49,23 @@ namespace ICSharpCode.ILSpy.TreeNodes
 		protected override void LoadChildren()
 		{
 			var metadata = module.Metadata;
+			var metadataModule = (MetadataModule)module.GetTypeSystemWithCurrentOptionsOrNull(SettingsService)?.MainModule;
 			foreach (var r in module.AssemblyReferences.OrderBy(r => r.Name))
-				this.Children.Add(new AssemblyReferenceTreeNode(r, parentAssembly));
+				this.Children.Add(new AssemblyReferenceTreeNode(metadataModule, r, parentAssembly));
 			foreach (var r in metadata.GetModuleReferences().OrderBy(r => metadata.GetString(metadata.GetModuleReference(r).Name)))
-				this.Children.Add(new ModuleReferenceTreeNode(parentAssembly, r, metadata));
+				this.Children.Add(new ModuleReferenceTreeNode(parentAssembly, r, module));
 		}
 
 		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
 		{
 			string targetFramework = parentAssembly.LoadedAssembly.GetTargetFrameworkIdAsync().GetAwaiter().GetResult();
 			string runtimePack = parentAssembly.LoadedAssembly.GetRuntimePackAsync().GetAwaiter().GetResult();
-			language.WriteCommentLine(output, $"Detected TargetFramework-Id: {targetFramework}");
-			language.WriteCommentLine(output, $"Detected RuntimePack: {runtimePack}");
+			output.WriteLine($"Detected TargetFramework-Id: {targetFramework}");
+			output.WriteLine($"Detected RuntimePack: {runtimePack}");
 
 			App.Current.Dispatcher.Invoke(DispatcherPriority.Normal, new Action(EnsureLazyChildren));
 			output.WriteLine();
-			language.WriteCommentLine(output, "Referenced assemblies (in metadata order):");
+			output.WriteLine("Referenced assemblies (in metadata order):");
 			// Show metadata order of references
 			foreach (var node in this.Children.OfType<ILSpyTreeNode>())
 				node.Decompile(language, output, options);
@@ -71,16 +73,14 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			output.WriteLine();
 			output.WriteLine();
 			// Show full assembly load log:
-			language.WriteCommentLine(output, "Assembly load log including transitive references:");
+			output.WriteLine("Assembly load log including transitive references:");
 			var info = parentAssembly.LoadedAssembly.LoadedAssemblyReferencesInfo;
+
 			foreach (var asm in info.Entries)
 			{
-				language.WriteCommentLine(output, asm.FullName);
+				output.WriteLine(asm.FullName);
 				output.Indent();
-				foreach (var item in asm.Messages)
-				{
-					language.WriteCommentLine(output, $"{item.Item1}: {item.Item2}");
-				}
+				AssemblyReferenceTreeNode.PrintAssemblyLoadLogMessages(output, asm);
 				output.Unindent();
 				output.WriteLine();
 			}

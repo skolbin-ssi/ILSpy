@@ -16,12 +16,10 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.Collections.Generic;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
@@ -30,10 +28,11 @@ namespace ICSharpCode.ILSpy.Metadata
 	{
 		readonly List<GuidHeapEntry> list;
 
-		public GuidHeapTreeNode(PEFile module, MetadataReader metadata)
-			: base(HandleKind.Guid, module, metadata)
+		public GuidHeapTreeNode(MetadataFile metadataFile)
+			: base(HandleKind.Guid, metadataFile)
 		{
 			list = new List<GuidHeapEntry>();
+			var metadata = metadataFile.Metadata;
 			int count = metadata.GetHeapSize(HeapIndex.Guid) >> 4;
 			for (int i = 1; i <= count; i++)
 			{
@@ -43,8 +42,6 @@ namespace ICSharpCode.ILSpy.Metadata
 		}
 
 		public override object Text => $"Guid Heap ({list.Count})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -76,11 +73,6 @@ namespace ICSharpCode.ILSpy.Metadata
 				this.metadata = metadata;
 				this.handle = handle;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "Guid Heap");
 		}
 	}
 }

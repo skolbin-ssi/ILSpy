@@ -18,7 +18,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Linq;
 using System.Reflection.Metadata;
 
@@ -29,7 +29,9 @@ using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
+using ICSharpCode.ILSpy.Docking;
 using ICSharpCode.ILSpy.TextView;
+using ICSharpCode.ILSpy.ViewModels;
 using ICSharpCode.ILSpyX;
 
 namespace ICSharpCode.ILSpy
@@ -42,7 +44,8 @@ namespace ICSharpCode.ILSpy
 	/// flat IL (detectControlStructure=false) and structured IL (detectControlStructure=true).
 	/// </remarks>
 	[Export(typeof(Language))]
-	public class ILLanguage : Language
+	[Shared]
+	public class ILLanguage(DockWorkspace dockWorkspace) : Language
 	{
 		protected bool detectControlStructure = true;
 
@@ -56,7 +59,7 @@ namespace ICSharpCode.ILSpy
 
 		protected virtual ReflectionDisassembler CreateDisassembler(ITextOutput output, DecompilationOptions options)
 		{
-			var displaySettings = MainWindow.Instance.CurrentDisplaySettings;
+			var displaySettings = SettingsService.DisplaySettings;
 			output.IndentationString = options.DecompilerSettings.CSharpFormattingOptions.IndentationString;
 			return new ReflectionDisassembler(output, options.CancellationToken) {
 				DetectControlStructure = detectControlStructure,
@@ -71,7 +74,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = method.ParentModule.PEFile;
+			MetadataFile module = method.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleMethod(module, (MethodDefinitionHandle)method.MetadataToken);
@@ -80,7 +83,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileField(IField field, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = field.ParentModule.PEFile;
+			MetadataFile module = field.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleField(module, (FieldDefinitionHandle)field.MetadataToken);
@@ -89,7 +92,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileProperty(IProperty property, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = property.ParentModule.PEFile;
+			MetadataFile module = property.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleProperty(module, (PropertyDefinitionHandle)property.MetadataToken);
@@ -115,7 +118,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileEvent(IEvent ev, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = ev.ParentModule.PEFile;
+			MetadataFile module = ev.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleEvent(module, (EventDefinitionHandle)ev.MetadataToken);
@@ -146,7 +149,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileType(ITypeDefinition type, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = type.ParentModule.PEFile;
+			MetadataFile module = type.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleType(module, (TypeDefinitionHandle)type.MetadataToken);
@@ -155,7 +158,7 @@ namespace ICSharpCode.ILSpy
 		public override void DecompileNamespace(string nameSpace, IEnumerable<ITypeDefinition> types, ITextOutput output, DecompilationOptions options)
 		{
 			var dis = CreateDisassembler(output, options);
-			PEFile module = types.FirstOrDefault()?.ParentModule.PEFile;
+			MetadataFile module = types.FirstOrDefault()?.ParentModule.MetadataFile;
 			dis.AssemblyResolver = module.GetAssemblyResolver();
 			dis.DebugInfo = module.GetDebugInfoOrNull();
 			dis.DisassembleNamespace(nameSpace, module, types.Select(t => (TypeDefinitionHandle)t.MetadataToken));
@@ -165,14 +168,15 @@ namespace ICSharpCode.ILSpy
 		{
 			output.WriteLine("// " + assembly.FileName);
 			output.WriteLine();
-			var module = assembly.GetPEFileAsync().GetAwaiter().GetResult();
-			var metadata = module.Metadata;
-			var dis = CreateDisassembler(output, options);
+			var module = assembly.GetMetadataFileOrNull();
 
 			if (options.FullDecompilation && options.SaveAsProjectDirectory != null)
 			{
 				throw new NotSupportedException($"Language '{Name}' does not support exporting assemblies as projects!");
 			}
+
+			var metadata = module.Metadata;
+			var dis = CreateDisassembler(output, options);
 
 			// don't automatically load additional assemblies when an assembly node is selected in the tree view
 			dis.AssemblyResolver = module.GetAssemblyResolver(loadOnDemand: options.FullDecompilation);
@@ -195,8 +199,9 @@ namespace ICSharpCode.ILSpy
 		public override RichText GetRichTextTooltip(IEntity entity)
 		{
 			var output = new AvalonEditTextOutput() { IgnoreNewLineAndIndent = true };
-			var disasm = CreateDisassembler(output, MainWindow.Instance.CreateDecompilationOptions());
-			PEFile module = entity.ParentModule?.PEFile;
+
+			var disasm = CreateDisassembler(output, dockWorkspace.ActiveTabPage.CreateDecompilationOptions());
+			MetadataFile module = entity.ParentModule?.MetadataFile;
 			if (module == null)
 			{
 				return null;

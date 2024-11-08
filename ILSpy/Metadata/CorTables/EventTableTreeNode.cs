@@ -21,9 +21,6 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.ILSpy.TreeNodes;
@@ -32,14 +29,10 @@ namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class EventTableTreeNode : MetadataTableTreeNode
 	{
-		public EventTableTreeNode(PEFile module)
-			: base(HandleKind.EventDefinition, module)
+		public EventTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.Event, metadataFile)
 		{
 		}
-
-		public override object Text => $"14 Event ({module.Metadata.GetTableRowCount(TableIndex.Event)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -47,14 +40,14 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			var metadata = module.Metadata;
+			var metadata = metadataFile.Metadata;
 
 			var list = new List<EventDefEntry>();
 			EventDefEntry scrollTargetEntry = default;
 
 			foreach (var row in metadata.EventDefinitions)
 			{
-				EventDefEntry entry = new EventDefEntry(module, row);
+				EventDefEntry entry = new EventDefEntry(metadataFile, row);
 				if (entry.RID == this.scrollTarget)
 				{
 					scrollTargetEntry = entry;
@@ -76,9 +69,7 @@ namespace ICSharpCode.ILSpy.Metadata
 
 		struct EventDefEntry : IMemberTreeNode
 		{
-			readonly int metadataOffset;
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly EventDefinitionHandle handle;
 			readonly EventDefinition eventDef;
 
@@ -86,9 +77,9 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public int Token => MetadataTokens.GetToken(handle);
 
-			public int Offset => metadataOffset
-				+ metadata.GetTableMetadataOffset(TableIndex.Event)
-				+ metadata.GetTableRowSize(TableIndex.Event) * (RID - 1);
+			public int Offset => metadataFile.MetadataOffset
+				+ metadataFile.Metadata.GetTableMetadataOffset(TableIndex.Event)
+				+ metadataFile.Metadata.GetTableRowSize(TableIndex.Event) * (RID - 1);
 
 			[ColumnInfo("X8", Kind = ColumnKind.Other)]
 			public EventAttributes Attributes => eventDef.Attributes;
@@ -99,35 +90,32 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public string NameTooltip => $"{MetadataTokens.GetHeapOffset(eventDef.Name):X} \"{Name}\"";
 
-			public string Name => metadata.GetString(eventDef.Name);
+			public string Name => metadataFile.Metadata.GetString(eventDef.Name);
 
-			IEntity IMemberTreeNode.Member => ((MetadataModule)module.GetTypeSystemWithCurrentOptionsOrNull()?.MainModule).GetDefinition(handle);
+			IEntity IMemberTreeNode.Member {
+				get {
+					return ((MetadataModule)metadataFile.GetTypeSystemWithCurrentOptionsOrNull(SettingsService)?.MainModule)?.GetDefinition(handle);
+				}
+			}
 
 			[ColumnInfo("X8", Kind = ColumnKind.Token)]
 			public int Type => MetadataTokens.GetToken(eventDef.Type);
 
 			public void OnTypeClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, eventDef.Type, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, eventDef.Type, protocol: "metadata")));
 			}
 
 			string typeTooltip;
-			public string TypeTooltip => GenerateTooltip(ref typeTooltip, module, eventDef.Type);
+			public string TypeTooltip => GenerateTooltip(ref typeTooltip, metadataFile, eventDef.Type);
 
-			public EventDefEntry(PEFile module, EventDefinitionHandle handle)
+			public EventDefEntry(MetadataFile metadataFile, EventDefinitionHandle handle)
 			{
-				this.metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadataFile = metadataFile;
 				this.handle = handle;
-				this.eventDef = metadata.GetEventDefinition(handle);
+				this.eventDef = metadataFile.Metadata.GetEventDefinition(handle);
 				this.typeTooltip = null;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "EventDefs");
 		}
 	}
 }

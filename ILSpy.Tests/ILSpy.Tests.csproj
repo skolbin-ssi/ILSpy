@@ -34,10 +34,26 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Analyzers\ExportAnalyzerAttributeTests.cs" />
+    <Compile Include="Analyzers\AnalyzerScopeTests.cs" />
     <Compile Include="Analyzers\MemberImplementsInterfaceAnalyzerTests.cs" />
     <Compile Include="Analyzers\MethodUsesAnalyzerTests.cs" />
     <Compile Include="Analyzers\TestCases\MainAssembly.cs" />
     <Compile Include="Analyzers\TypeUsedByAnalyzerTests.cs" />
+    <Compile Include="CommandLineArgumentsTests.cs" />
+    <Compile Include="ResourceReaderWriterTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Icon.ico" />
+    <EmbeddedResource Include="Test.resources" />
+    <EmbeddedResource Include="IconContainer.resx">
+      <Generator>ResXCodeGenerator</Generator>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="BitmapContainer.resources" />
   </ItemGroup>
 
   <ItemGroup>
@@ -53,7 +69,10 @@
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="NUnit3TestAdapter" />
-    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="NUnit" />
     <PackageReference Include="FluentAssertions" />
     <PackageReference Include="JunitXml.TestLogger" />

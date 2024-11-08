@@ -51,14 +51,14 @@ namespace ICSharpCode.ILSpyX
 
 		public PackageKind Kind { get; }
 
-		internal SingleFileBundle.Header BundleHeader { get; set; }
+		public SingleFileBundle.Header BundleHeader { get; set; }
 
 		/// <summary>
 		/// List of all entries, including those in sub-directories within the package.
 		/// </summary>
 		public IReadOnlyList<PackageEntry> Entries { get; }
 
-		internal PackageFolder RootFolder { get; }
+		public PackageFolder RootFolder { get; }
 
 		public LoadedPackage(PackageKind kind, IEnumerable<PackageEntry> entries)
 		{
@@ -71,7 +71,10 @@ namespace ICSharpCode.ILSpyX
 			foreach (var entry in this.Entries)
 			{
 				var (dirname, filename) = SplitName(entry.Name);
-				GetFolder(dirname).Entries.Add(new FolderEntry(filename, entry));
+				if (!string.IsNullOrEmpty(filename))
+				{
+					GetFolder(dirname).Entries.Add(new FolderEntry(filename, entry));
+				}
 			}
 			this.RootFolder = rootFolder;
 
@@ -122,6 +125,10 @@ namespace ICSharpCode.ILSpyX
 				result.BundleHeader = manifest;
 				view = null; // don't dispose the view, we're still using it in the bundle entries
 				return result;
+			}
+			catch (InvalidDataException)
+			{
+				return null;
 			}
 			finally
 			{
@@ -249,7 +256,7 @@ namespace ICSharpCode.ILSpyX
 		public abstract string FullName { get; }
 	}
 
-	sealed class PackageFolder : IAssemblyResolver
+	public sealed class PackageFolder : IAssemblyResolver
 	{
 		/// <summary>
 		/// Gets the short name of the folder.
@@ -269,57 +276,57 @@ namespace ICSharpCode.ILSpyX
 		public List<PackageFolder> Folders { get; } = new List<PackageFolder>();
 		public List<PackageEntry> Entries { get; } = new List<PackageEntry>();
 
-		public PEFile? Resolve(IAssemblyReference reference)
+		public MetadataFile? Resolve(IAssemblyReference reference)
 		{
 			var asm = ResolveFileName(reference.Name + ".dll");
 			if (asm != null)
 			{
-				return asm.GetPEFileOrNull();
+				return asm.GetMetadataFileOrNull();
 			}
 			return parent?.Resolve(reference);
 		}
 
-		public Task<PEFile?> ResolveAsync(IAssemblyReference reference)
+		public Task<MetadataFile?> ResolveAsync(IAssemblyReference reference)
 		{
 			var asm = ResolveFileName(reference.Name + ".dll");
 			if (asm != null)
 			{
-				return asm.GetPEFileOrNullAsync();
+				return asm.GetMetadataFileOrNullAsync();
 			}
 			if (parent != null)
 			{
 				return parent.ResolveAsync(reference);
 			}
-			return Task.FromResult<PEFile?>(null);
+			return Task.FromResult<MetadataFile?>(null);
 		}
 
-		public PEFile? ResolveModule(PEFile mainModule, string moduleName)
+		public MetadataFile? ResolveModule(MetadataFile mainModule, string moduleName)
 		{
 			var asm = ResolveFileName(moduleName + ".dll");
 			if (asm != null)
 			{
-				return asm.GetPEFileOrNull();
+				return asm.GetMetadataFileOrNull();
 			}
 			return parent?.ResolveModule(mainModule, moduleName);
 		}
 
-		public Task<PEFile?> ResolveModuleAsync(PEFile mainModule, string moduleName)
+		public Task<MetadataFile?> ResolveModuleAsync(MetadataFile mainModule, string moduleName)
 		{
 			var asm = ResolveFileName(moduleName + ".dll");
 			if (asm != null)
 			{
-				return asm.GetPEFileOrNullAsync();
+				return asm.GetMetadataFileOrNullAsync();
 			}
 			if (parent != null)
 			{
 				return parent.ResolveModuleAsync(mainModule, moduleName);
 			}
-			return Task.FromResult<PEFile?>(null);
+			return Task.FromResult<MetadataFile?>(null);
 		}
 
 		readonly Dictionary<string, LoadedAssembly?> assemblies = new Dictionary<string, LoadedAssembly?>(StringComparer.OrdinalIgnoreCase);
 
-		internal LoadedAssembly? ResolveFileName(string name)
+		public LoadedAssembly? ResolveFileName(string name)
 		{
 			if (package.LoadedAssembly == null)
 				return null;
@@ -332,6 +339,7 @@ namespace ICSharpCode.ILSpyX
 				{
 					asm = new LoadedAssembly(
 						package.LoadedAssembly, entry.Name,
+						fileLoaders: package.LoadedAssembly.AssemblyList.LoaderRegistry,
 						assemblyResolver: this,
 						stream: Task.Run(entry.TryOpenStream),
 						applyWinRTProjections: package.LoadedAssembly.AssemblyList.ApplyWinRTProjections,

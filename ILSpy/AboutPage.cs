@@ -17,13 +17,15 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
+using System.Composition;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
-using System.Windows.Navigation;
 
 using ICSharpCode.AvalonEdit.Rendering;
 using ICSharpCode.Decompiler;
@@ -31,51 +33,67 @@ using ICSharpCode.ILSpy.Properties;
 using ICSharpCode.ILSpy.TextView;
 using ICSharpCode.ILSpy.Themes;
 using ICSharpCode.ILSpy.Updates;
-using ICSharpCode.ILSpyX.Settings;
+using ICSharpCode.ILSpy.ViewModels;
 
 namespace ICSharpCode.ILSpy
 {
 	[ExportMainMenuCommand(ParentMenuID = nameof(Resources._Help), Header = nameof(Resources._About), MenuOrder = 99999)]
-	sealed class AboutPage : SimpleCommand
+	[Shared]
+	public sealed class AboutPage : SimpleCommand
 	{
-		public override void Execute(object parameter)
+		readonly SettingsService settingsService;
+		readonly IEnumerable<IAboutPageAddition> aboutPageAdditions;
+
+		public AboutPage(SettingsService settingsService, IEnumerable<IAboutPageAddition> aboutPageAdditions)
 		{
-			MainWindow.Instance.NavigateTo(
-				new RequestNavigateEventArgs(new Uri("resource://aboutpage"), null),
-				inNewTabPage: true
-			);
+			this.settingsService = settingsService;
+			this.aboutPageAdditions = aboutPageAdditions;
+			MessageBus<ShowAboutPageEventArgs>.Subscribers += (_, e) => ShowAboutPage(e.TabPage);
 		}
 
-		public static void Display(DecompilerTextView textView)
+		public override void Execute(object parameter)
+		{
+			MessageBus.Send(this, new NavigateToEventArgs(new(new("resource://aboutpage"), null), inNewTabPage: true));
+		}
+
+		private void ShowAboutPage(TabPageModel tabPage)
+		{
+			tabPage.ShowTextView(Display);
+		}
+
+		private void Display(DecompilerTextView textView)
 		{
 			AvalonEditTextOutput output = new AvalonEditTextOutput() {
 				Title = Resources.About,
 				EnableHyperlinks = true
 			};
-			output.WriteLine(Resources.ILSpyVersion + DecompilerVersionInfo.FullVersion);
+			output.WriteLine(Resources.ILSpyVersion + DecompilerVersionInfo.FullVersionWithCommitHash);
 
-			string prodVersion = System.Diagnostics.FileVersionInfo.GetVersionInfo(typeof(Uri).Assembly.Location).ProductVersion;
+			string prodVersion = GetDotnetProductVersion();
 			output.WriteLine(Resources.NETFrameworkVersion + prodVersion);
 
 			output.AddUIElement(
 			delegate {
-				StackPanel stackPanel = new StackPanel();
-				stackPanel.HorizontalAlignment = HorizontalAlignment.Center;
-				stackPanel.Orientation = Orientation.Horizontal;
-				if (NotifyOfUpdatesStrategy.LatestAvailableVersion == null)
+				StackPanel stackPanel = new() {
+					HorizontalAlignment = HorizontalAlignment.Center,
+					Orientation = Orientation.Horizontal
+				};
+				if (UpdateService.LatestAvailableVersion == null)
 				{
 					AddUpdateCheckButton(stackPanel, textView);
 				}
 				else
 				{
 					// we already retrieved the latest version sometime earlier
-					ShowAvailableVersion(NotifyOfUpdatesStrategy.LatestAvailableVersion, stackPanel);
+					ShowAvailableVersion(UpdateService.LatestAvailableVersion, stackPanel);
 				}
-				CheckBox checkBox = new CheckBox();
-				checkBox.Margin = new Thickness(4);
-				checkBox.Content = Resources.AutomaticallyCheckUpdatesEveryWeek;
-				UpdateSettings settings = new UpdateSettings(ILSpySettings.Load());
-				checkBox.SetBinding(CheckBox.IsCheckedProperty, new Binding("AutomaticUpdateCheckEnabled") { Source = settings });
+				CheckBox checkBox = new() {
+					Margin = new Thickness(4),
+					Content = Resources.AutomaticallyCheckUpdatesEveryWeek
+				};
+
+				var settings = settingsService.GetSettings<UpdateSettings>();
+				checkBox.SetBinding(ToggleButton.IsCheckedProperty, new Binding("AutomaticUpdateCheckEnabled") { Source = settings });
 				return new StackPanel {
 					Margin = new Thickness(0, 4, 0, 0),
 					Cursor = Cursors.Arrow,
@@ -84,7 +102,7 @@ namespace ICSharpCode.ILSpy
 			});
 			output.WriteLine();
 
-			foreach (var plugin in App.ExportProvider.GetExportedValues<IAboutPageAddition>())
+			foreach (var plugin in aboutPageAdditions)
 				plugin.Write(output);
 			output.WriteLine();
 			output.Address = new Uri("resource://AboutPage");
@@ -92,8 +110,7 @@ namespace ICSharpCode.ILSpy
 			{
 				using (StreamReader r = new StreamReader(s))
 				{
-					string line;
-					while ((line = r.ReadLine()) != null)
+					while (r.ReadLine() is { } line)
 					{
 						output.WriteLine(line);
 					}
@@ -102,6 +119,27 @@ namespace ICSharpCode.ILSpy
 			output.AddVisualLineElementGenerator(new MyLinkElementGenerator("MIT License", "resource:license.txt"));
 			output.AddVisualLineElementGenerator(new MyLinkElementGenerator("third-party notices", "resource:third-party-notices.txt"));
 			textView.ShowText(output);
+		}
+
+		private static string GetDotnetProductVersion()
+		{
+			// In case of AOT .Location is null, we need a fallback for that
+			string assemblyLocation = typeof(Uri).Assembly.Location;
+
+			if (!String.IsNullOrWhiteSpace(assemblyLocation))
+			{
+				return System.Diagnostics.FileVersionInfo.GetVersionInfo(assemblyLocation).ProductVersion;
+			}
+			else
+			{
+				var version = typeof(Object).Assembly.GetName().Version;
+				if (version != null)
+				{
+					return version.ToString();
+				}
+			}
+
+			return "UNKNOWN";
 		}
 
 		sealed class MyLinkElementGenerator : LinkElementGenerator
@@ -133,7 +171,7 @@ namespace ICSharpCode.ILSpy
 
 				try
 				{
-					AvailableVersionInfo vInfo = await NotifyOfUpdatesStrategy.GetLatestVersionAsync();
+					AvailableVersionInfo vInfo = await UpdateService.GetLatestVersionAsync();
 					stackPanel.Children.Clear();
 					ShowAvailableVersion(vInfo, stackPanel);
 				}
@@ -176,7 +214,7 @@ namespace ICSharpCode.ILSpy
 					button.Content = Resources.Download;
 					button.Cursor = Cursors.Arrow;
 					button.Click += delegate {
-						MainWindow.OpenLink(availableVersion.DownloadUrl);
+						GlobalUtils.OpenLink(availableVersion.DownloadUrl);
 					};
 					stackPanel.Children.Add(button);
 				}

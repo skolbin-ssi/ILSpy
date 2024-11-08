@@ -20,7 +20,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
 
 using ICSharpCode.Decompiler.CSharp.Resolver;
 using ICSharpCode.Decompiler.Semantics;
@@ -643,37 +642,51 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 
 		ILInstruction PrepareCallTarget(IType expectedType, ILInstruction target, IType targetType)
 		{
+			ILInstruction result;
 			switch (CallInstruction.ExpectedTypeForThisPointer(expectedType))
 			{
 				case StackType.Ref:
 					if (target.ResultType == StackType.Ref)
 					{
-						return target;
+						result = target;
 					}
 					else if (target is LdLoc ldloc)
 					{
-						return new LdLoca(ldloc.Variable).WithILRange(ldloc);
+						result = new LdLoca(ldloc.Variable).WithILRange(ldloc);
 					}
 					else
 					{
-						return new AddressOf(target, expectedType);
+						result = new AddressOf(target, expectedType);
 					}
+					break;
 				case StackType.O:
 					if (targetType.IsReferenceType == false)
 					{
-						return new Box(target, targetType);
+						result = new Box(target, targetType);
 					}
 					else
 					{
-						return target;
+						result = target;
 					}
+					break;
 				default:
-					if (expectedType.Kind == TypeKind.Unknown && target.ResultType != StackType.Unknown)
-					{
-						return new Conv(target, PrimitiveType.Unknown, false, Sign.None);
-					}
-					return target;
+					result = target;
+					break;
 			}
+
+			if (expectedType.Kind == TypeKind.Unknown && result.ResultType != StackType.Unknown)
+			{
+				result = new Conv(target, PrimitiveType.Unknown, false, Sign.None);
+			}
+			else if (expectedType.Kind != TypeKind.Unknown && result.ResultType == StackType.Unknown)
+			{
+				// if references are missing, we need to coerce the unknown type to the expected type.
+				// Otherwise we will get loads of assertions and expression trees
+				// are usually explicit about any conversions.
+				result = new Conv(result, expectedType.ToPrimitiveType(), false, Sign.None);
+			}
+
+			return result;
 		}
 
 		ILInstruction UnpackConstant(ILInstruction inst)
@@ -1423,7 +1436,15 @@ namespace ICSharpCode.Decompiler.IL.Transforms
 				value = call.Arguments[0];
 				if (call.Arguments.Count == 2)
 					return MatchGetTypeFromHandle(call.Arguments[1], out type);
-				type = value.InferType(context.TypeSystem);
+				type = value switch {
+					LdNull => SpecialType.NullType,
+					LdStr => context.TypeSystem.FindType(KnownTypeCode.String),
+					LdcF4 => context.TypeSystem.FindType(KnownTypeCode.Single),
+					LdcF8 => context.TypeSystem.FindType(KnownTypeCode.Double),
+					LdcI4 => context.TypeSystem.FindType(KnownTypeCode.Int32),
+					LdcI8 => context.TypeSystem.FindType(KnownTypeCode.Int64),
+					_ => value.InferType(context.TypeSystem),
+				};
 				return true;
 			}
 			return false;

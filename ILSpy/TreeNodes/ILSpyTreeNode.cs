@@ -16,21 +16,21 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
-using System.Windows;
 using System.Windows.Threading;
 
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.TypeSystem;
-using ICSharpCode.ILSpy.Options;
+using ICSharpCode.ILSpy.AssemblyTree;
+using ICSharpCode.ILSpy.Docking;
 using ICSharpCode.ILSpyX.Abstractions;
-using ICSharpCode.TreeView;
+using ICSharpCode.ILSpyX.TreeView.PlatformAbstractions;
+using ICSharpCode.ILSpyX.TreeView;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
@@ -39,25 +39,28 @@ namespace ICSharpCode.ILSpy.TreeNodes
 	/// </summary>
 	public abstract class ILSpyTreeNode : SharpTreeNode, ITreeNode
 	{
-		FilterSettings filterSettings;
 		bool childrenNeedFiltering;
 
-		public FilterSettings FilterSettings {
-			get { return filterSettings; }
-			set {
-				if (filterSettings != value)
-				{
-					filterSettings = value;
-					OnFilterSettingsChanged();
-				}
-			}
+		protected ILSpyTreeNode()
+		{
+			MessageBus<SettingsChangedEventArgs>.Subscribers += (sender, e) => Settings_Changed(sender, e);
 		}
 
-		public Language Language {
-			get { return filterSettings != null ? filterSettings.Language : Languages.AllLanguages[0]; }
-		}
+		LanguageSettings LanguageSettings => SettingsService.SessionSettings.LanguageSettings;
 
-		public virtual FilterResult Filter(FilterSettings settings)
+		public Language Language => LanguageService.Language;
+
+		protected static AssemblyTreeModel AssemblyTreeModel { get; } = App.ExportProvider.GetExportedValue<AssemblyTreeModel>();
+
+		protected static ICollection<IResourceNodeFactory> ResourceNodeFactories { get; } = App.ExportProvider.GetExportedValues<IResourceNodeFactory>().ToArray();
+
+		protected static SettingsService SettingsService { get; } = App.ExportProvider.GetExportedValue<SettingsService>();
+
+		protected static LanguageService LanguageService { get; } = App.ExportProvider.GetExportedValue<LanguageService>();
+
+		protected static DockWorkspace DockWorkspace { get; } = App.ExportProvider.GetExportedValue<DockWorkspace>();
+
+		public virtual FilterResult Filter(LanguageSettings settings)
 		{
 			if (string.IsNullOrEmpty(settings.SearchTerm))
 				return FilterResult.Match;
@@ -77,10 +80,13 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			return false;
 		}
 
-		public override void ActivateItemSecondary(RoutedEventArgs e)
+		public override void ActivateItemSecondary(IPlatformRoutedEventArgs e)
 		{
-			MainWindow.Instance.SelectNode(this, inNewTabPage: true);
-			MainWindow.Instance.Dispatcher.BeginInvoke(DispatcherPriority.Background, (Action)MainWindow.Instance.RefreshDecompiledView);
+			var assemblyTreeModel = AssemblyTreeModel;
+
+			assemblyTreeModel.SelectNode(this, inNewTabPage: true);
+
+			App.Current.Dispatcher.BeginInvoke(DispatcherPriority.Background, assemblyTreeModel.RefreshDecompiledView);
 		}
 
 		/// <summary>
@@ -93,8 +99,10 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			return false;
 		}
 
-		protected override void OnChildrenChanged(NotifyCollectionChangedEventArgs e)
+		public override void OnChildrenChanged(NotifyCollectionChangedEventArgs e)
 		{
+			base.OnChildrenChanged(e);
+
 			if (e.NewItems != null)
 			{
 				if (IsVisible)
@@ -107,32 +115,25 @@ namespace ICSharpCode.ILSpy.TreeNodes
 					childrenNeedFiltering = true;
 				}
 			}
-			base.OnChildrenChanged(e);
 		}
 
 		void ApplyFilterToChild(ILSpyTreeNode child)
 		{
-			FilterResult r;
-			if (this.FilterSettings == null)
-				r = FilterResult.Match;
-			else
-				r = child.Filter(this.FilterSettings);
+			FilterResult r = child.Filter(this.LanguageSettings);
+
 			switch (r)
 			{
 				case FilterResult.Hidden:
 					child.IsHidden = true;
 					break;
 				case FilterResult.Match:
-					child.FilterSettings = StripSearchTerm(this.FilterSettings);
 					child.IsHidden = false;
 					break;
 				case FilterResult.Recurse:
-					child.FilterSettings = this.FilterSettings;
 					child.EnsureChildrenFiltered();
 					child.IsHidden = child.Children.All(c => c.IsHidden);
 					break;
 				case FilterResult.MatchAndRecurse:
-					child.FilterSettings = StripSearchTerm(this.FilterSettings);
 					child.EnsureChildrenFiltered();
 					child.IsHidden = child.Children.All(c => c.IsHidden);
 					break;
@@ -141,20 +142,13 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			}
 		}
 
-		static FilterSettings StripSearchTerm(FilterSettings filterSettings)
+		protected virtual void Settings_Changed(object sender, PropertyChangedEventArgs e)
 		{
-			if (filterSettings == null)
-				return null;
-			if (!string.IsNullOrEmpty(filterSettings.SearchTerm))
-			{
-				filterSettings = filterSettings.Clone();
-				filterSettings.SearchTerm = null;
-			}
-			return filterSettings;
-		}
+			if (sender is not ILSpy.LanguageSettings)
+				return;
+			if (e.PropertyName is not (nameof(LanguageSettings.LanguageId) or nameof(LanguageSettings.LanguageVersionId)))
+				return;
 
-		protected virtual void OnFilterSettingsChanged()
-		{
 			RaisePropertyChanged(nameof(Text));
 			if (IsVisible)
 			{
@@ -167,11 +161,6 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			}
 		}
 
-		/*protected override void OnIsVisibleChanged()
-		{
-			base.OnIsVisibleChanged();
-			EnsureChildrenFiltered();
-		}*/
 
 		internal void EnsureChildrenFiltered()
 		{
@@ -188,11 +177,11 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		protected string GetSuffixString(EntityHandle handle)
 		{
-			if (!MainWindow.Instance.CurrentDisplaySettings.ShowMetadataTokens)
+			if (!SettingsService.DisplaySettings.ShowMetadataTokens)
 				return string.Empty;
 
 			int token = MetadataTokens.GetToken(handle);
-			if (MainWindow.Instance.CurrentDisplaySettings.ShowMetadataTokensInBase10)
+			if (SettingsService.DisplaySettings.ShowMetadataTokensInBase10)
 				return " @" + token;
 			return " @" + token.ToString("x8");
 		}

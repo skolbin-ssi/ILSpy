@@ -22,23 +22,18 @@ using System.Collections.Generic;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class FieldRVATableTreeNode : MetadataTableTreeNode
 	{
-		public FieldRVATableTreeNode(PEFile module)
-			: base((HandleKind)0x1D, module)
+		public FieldRVATableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.FieldRva, metadataFile)
 		{
 		}
 
-		public override object Text => $"1D FieldRVA ({module.Metadata.GetTableRowCount(TableIndex.FieldRva)})";
-
-		public override object Icon => Images.Literal;
+		public override object Text => $"1D FieldRVA ({metadataFile.Metadata.GetTableRowCount(TableIndex.FieldRva)})";
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -46,17 +41,17 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			var metadata = module.Metadata;
+			var metadata = metadataFile.Metadata;
 
 			var list = new List<FieldRVAEntry>();
 			FieldRVAEntry scrollTargetEntry = default;
 
 			var length = metadata.GetTableRowCount(TableIndex.FieldRva);
 			ReadOnlySpan<byte> ptr = metadata.AsReadOnlySpan();
-			int metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
+			int metadataOffset = metadataFile.MetadataOffset;
 			for (int rid = 1; rid <= length; rid++)
 			{
-				FieldRVAEntry entry = new FieldRVAEntry(module, ptr, metadataOffset, rid);
+				FieldRVAEntry entry = new FieldRVAEntry(metadataFile, metadataOffset, ptr, rid);
 				if (entry.RID == this.scrollTarget)
 				{
 					scrollTargetEntry = entry;
@@ -90,8 +85,7 @@ namespace ICSharpCode.ILSpy.Metadata
 
 		struct FieldRVAEntry
 		{
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly FieldRVA fieldRVA;
 
 			public int RID { get; }
@@ -105,32 +99,26 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public void OnFieldClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, fieldRVA.Field, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, fieldRVA.Field, protocol: "metadata")));
 			}
 
 			string fieldTooltip;
-			public string FieldTooltip => GenerateTooltip(ref fieldTooltip, module, fieldRVA.Field);
+			public string FieldTooltip => GenerateTooltip(ref fieldTooltip, metadataFile, fieldRVA.Field);
 
 			[ColumnInfo("X8", Kind = ColumnKind.Other)]
 			public int FieldOffset => fieldRVA.Offset;
 
-			public FieldRVAEntry(PEFile module, ReadOnlySpan<byte> ptr, int metadataOffset, int row)
+			public FieldRVAEntry(MetadataFile metadataFile, int metadataOffset, ReadOnlySpan<byte> ptr, int row)
 			{
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadataFile = metadataFile;
 				this.RID = row;
-				var rowOffset = metadata.GetTableMetadataOffset(TableIndex.FieldRva)
-					+ metadata.GetTableRowSize(TableIndex.FieldRva) * (row - 1);
+				var rowOffset = metadataFile.Metadata.GetTableMetadataOffset(TableIndex.FieldRva)
+					+ metadataFile.Metadata.GetTableRowSize(TableIndex.FieldRva) * (row - 1);
 				this.Offset = metadataOffset + rowOffset;
-				int fieldDefSize = metadata.GetTableRowCount(TableIndex.Field) < ushort.MaxValue ? 2 : 4;
+				int fieldDefSize = metadataFile.Metadata.GetTableRowCount(TableIndex.Field) < ushort.MaxValue ? 2 : 4;
 				this.fieldRVA = new FieldRVA(ptr.Slice(rowOffset), fieldDefSize);
 				this.fieldTooltip = null;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "FieldRVAs");
 		}
 	}
 }

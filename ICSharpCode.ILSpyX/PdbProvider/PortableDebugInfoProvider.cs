@@ -23,26 +23,32 @@ using System.IO;
 using System.Reflection.Metadata;
 
 using ICSharpCode.Decompiler.DebugInfo;
+using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.Util;
+
+using static ICSharpCode.Decompiler.Metadata.MetadataFile;
 
 #nullable enable
 
 namespace ICSharpCode.ILSpyX.PdbProvider
 {
-	class PortableDebugInfoProvider : IDebugInfoProvider
+	public class PortableDebugInfoProvider : IDebugInfoProvider
 	{
 		string? pdbFileName;
 		string moduleFileName;
 		readonly MetadataReaderProvider provider;
+		MetadataReaderOptions options;
 		bool hasError;
 
-		internal bool IsEmbedded => pdbFileName == null;
+		public bool IsEmbedded => pdbFileName == null;
 
 		public PortableDebugInfoProvider(string moduleFileName, MetadataReaderProvider provider,
+			MetadataReaderOptions options = MetadataReaderOptions.Default,
 			string? pdbFileName = null)
 		{
 			this.moduleFileName = moduleFileName ?? throw new ArgumentNullException(nameof(moduleFileName));
 			this.provider = provider ?? throw new ArgumentNullException(nameof(provider));
+			this.options = options;
 			this.pdbFileName = pdbFileName;
 		}
 
@@ -63,7 +69,7 @@ namespace ICSharpCode.ILSpyX.PdbProvider
 			}
 		}
 
-		internal MetadataReader? GetMetadataReader()
+		public MetadataReader? GetMetadataReader()
 		{
 			try
 			{
@@ -92,31 +98,38 @@ namespace ICSharpCode.ILSpyX.PdbProvider
 			var debugInfo = metadata.GetMethodDebugInformation(method);
 			var sequencePoints = new List<Decompiler.DebugInfo.SequencePoint>();
 
-			foreach (var point in debugInfo.GetSequencePoints())
+			try
 			{
-				string documentFileName;
-
-				if (!point.Document.IsNil)
+				foreach (var point in debugInfo.GetSequencePoints())
 				{
-					var document = metadata.GetDocument(point.Document);
-					documentFileName = metadata.GetString(document.Name);
-				}
-				else
-				{
-					documentFileName = "";
+					string documentFileName;
+
+					if (!point.Document.IsNil)
+					{
+						var document = metadata.GetDocument(point.Document);
+						documentFileName = metadata.GetString(document.Name);
+					}
+					else
+					{
+						documentFileName = "";
+					}
+
+					sequencePoints.Add(new Decompiler.DebugInfo.SequencePoint() {
+						Offset = point.Offset,
+						StartLine = point.StartLine,
+						StartColumn = point.StartColumn,
+						EndLine = point.EndLine,
+						EndColumn = point.EndColumn,
+						DocumentUrl = documentFileName
+					});
 				}
 
-				sequencePoints.Add(new Decompiler.DebugInfo.SequencePoint() {
-					Offset = point.Offset,
-					StartLine = point.StartLine,
-					StartColumn = point.StartColumn,
-					EndLine = point.EndLine,
-					EndColumn = point.EndColumn,
-					DocumentUrl = documentFileName
-				});
+				return sequencePoints;
 			}
-
-			return sequencePoints;
+			catch (BadImageFormatException)
+			{
+				return EmptyList<Decompiler.DebugInfo.SequencePoint>.Instance;
+			}
 		}
 
 		public IList<Variable> GetVariables(MethodDefinitionHandle method)
@@ -232,6 +245,12 @@ namespace ICSharpCode.ILSpyX.PdbProvider
 			}
 
 			return extraTypeInfo.TupleElementNames != null || extraTypeInfo.DynamicFlags != null;
+		}
+
+		public MetadataFile ToMetadataFile()
+		{
+			var kind = IsEmbedded || Path.GetExtension(SourceFileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase) ? MetadataFileKind.ProgramDebugDatabase : MetadataFileKind.Metadata;
+			return new MetadataFile(kind, SourceFileName, provider, options, 0, IsEmbedded);
 		}
 	}
 }

@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Windows.Data;
 using System.Windows.Input;
 
 namespace ICSharpCode.ILSpy
@@ -34,5 +35,10 @@ namespace ICSharpCode.ILSpy
 		{
 			return true;
 		}
+	}
+
+	public interface IProvideParameterBinding
+	{
+		Binding ParameterBinding { get; }
 	}
 }

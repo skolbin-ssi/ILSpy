@@ -23,28 +23,32 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 
 using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.IL;
+using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.ILSpy.TreeNodes;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	internal abstract class MetadataTableTreeNode : ILSpyTreeNode
 	{
-		protected PEFile module;
+		protected readonly MetadataFile metadataFile;
 		protected int scrollTarget;
 
-		public HandleKind Kind { get; }
+		public TableIndex Kind { get; }
 
-		public MetadataTableTreeNode(HandleKind kind, PEFile module)
+		public override object Text => $"{(int)Kind:X2} {Kind} ({metadataFile.Metadata.GetTableRowCount(Kind)})";
+
+		public override object Icon => Images.MetadataTable;
+
+		public MetadataTableTreeNode(TableIndex table, MetadataFile metadataFile)
 		{
-			this.module = module;
-			this.Kind = kind;
+			this.Kind = table;
+			this.metadataFile = metadataFile;
 		}
 
 		internal void ScrollTo(Handle handle)
 		{
-			this.scrollTarget = module.Metadata.GetRowNumber((EntityHandle)handle);
+			this.scrollTarget = metadataFile.Metadata.GetRowNumber((EntityHandle)handle);
 		}
 
 		protected void ScrollItemIntoView(DataGrid view, object item)
@@ -62,7 +66,7 @@ namespace ICSharpCode.ILSpy.Metadata
 			this.scrollTarget = default;
 		}
 
-		protected static string GenerateTooltip(ref string tooltip, PEFile module, EntityHandle handle)
+		protected static string GenerateTooltip(ref string tooltip, MetadataFile module, EntityHandle handle)
 		{
 			if (tooltip == null)
 			{
@@ -71,7 +75,7 @@ namespace ICSharpCode.ILSpy.Metadata
 					return null;
 				}
 				ITextOutput output = new PlainTextOutput();
-				var context = new MetadataGenericContext(default(TypeDefinitionHandle), module);
+				var context = new MetadataGenericContext(default(TypeDefinitionHandle), module.Metadata);
 				var metadata = module.Metadata;
 				switch (handle.Kind)
 				{
@@ -84,7 +88,7 @@ namespace ICSharpCode.ILSpy.Metadata
 						output.Write(metadata.GetString(moduleReference.Name));
 						break;
 					case HandleKind.AssemblyReference:
-						var asmRef = new Decompiler.Metadata.AssemblyReference(module, (AssemblyReferenceHandle)handle);
+						var asmRef = new Decompiler.Metadata.AssemblyReference(metadata, (AssemblyReferenceHandle)handle);
 						output.Write(asmRef.ToString());
 						break;
 					case HandleKind.Parameter:
@@ -128,16 +132,31 @@ namespace ICSharpCode.ILSpy.Metadata
 			}
 			return tooltip;
 		}
+
+		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
+		{
+		}
 	}
 
 	internal abstract class DebugMetadataTableTreeNode : MetadataTableTreeNode
 	{
-		protected MetadataReader metadata;
-
-		public DebugMetadataTableTreeNode(HandleKind kind, PEFile module, MetadataReader metadata)
-			: base(kind, module)
+		public DebugMetadataTableTreeNode(TableIndex kind, MetadataFile metadataFile)
+			: base(kind, metadataFile)
 		{
-			this.metadata = metadata;
+		}
+	}
+
+	internal class UnsupportedMetadataTableTreeNode : MetadataTableTreeNode
+	{
+		public UnsupportedMetadataTableTreeNode(TableIndex kind, MetadataFile file)
+			: base(kind, file)
+		{
+		}
+		public override object Text => $"{(int)Kind:X2} {Kind.ToString()} [unsupported] ({metadataFile.Metadata.GetTableRowCount(Kind)})";
+
+		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
+		{
+			output.WriteLine($"Unsupported table '{(int)Kind:X2} {Kind}' contains {metadataFile.Metadata.GetTableRowCount(Kind)} rows.");
 		}
 	}
 }

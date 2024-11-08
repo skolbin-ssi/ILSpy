@@ -20,7 +20,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel.Composition;
+using System.Composition;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -30,13 +30,17 @@ using System.Runtime.CompilerServices;
 
 using ICSharpCode.AvalonEdit.Highlighting;
 using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.Solution;
 using ICSharpCode.Decompiler.TypeSystem;
+using ICSharpCode.ILSpy.Util;
 using ICSharpCode.ILSpyX;
 
 using ILCompiler.Reflection.ReadyToRun;
+
+using TomsToolbox.Composition;
+
+using MetadataReader = System.Reflection.Metadata.MetadataReader;
 
 namespace ICSharpCode.ILSpy.ReadyToRun
 {
@@ -96,9 +100,10 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 #endif
 
 	[Export(typeof(Language))]
-	internal class ReadyToRunLanguage : Language
+	[Shared]
+	internal class ReadyToRunLanguage(SettingsService settingsService, IExportProvider exportProvider) : Language
 	{
-		private static readonly ConditionalWeakTable<PEFile, ReadyToRunReaderCacheEntry> readyToRunReaders = new ConditionalWeakTable<PEFile, ReadyToRunReaderCacheEntry>();
+		private static readonly ConditionalWeakTable<MetadataFile, ReadyToRunReaderCacheEntry> readyToRunReaders = new ConditionalWeakTable<MetadataFile, ReadyToRunReaderCacheEntry>();
 
 		public override string Name => "ReadyToRun";
 
@@ -113,7 +118,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		public override ProjectId DecompileAssembly(LoadedAssembly assembly, ITextOutput output, DecompilationOptions options)
 		{
-			PEFile module = assembly.GetPEFileAsync().GetAwaiter().GetResult();
+			PEFile module = assembly.GetMetadataFileAsync().GetAwaiter().GetResult() as PEFile;
 			ReadyToRunReaderCacheEntry cacheEntry = GetReader(assembly, module);
 			if (cacheEntry.readyToRunReader == null)
 			{
@@ -136,7 +141,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
 		{
-			PEFile module = method.ParentModule.PEFile;
+			PEFile module = method.ParentModule.MetadataFile as PEFile;
 			ReadyToRunReaderCacheEntry cacheEntry = GetReader(module.GetLoadedAssembly(), module);
 			if (cacheEntry.readyToRunReader == null)
 			{
@@ -174,7 +179,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 							.GroupBy(m => m.MethodHandle)
 							.ToDictionary(g => g.Key, g => g.ToArray());
 				}
-				var displaySettings = MainWindow.Instance.CurrentDisplaySettings;
+				var displaySettings = settingsService.DisplaySettings;
 				bool showMetadataTokens = displaySettings.ShowMetadataTokens;
 				bool showMetadataTokensInBase10 = displaySettings.ShowMetadataTokensInBase10;
 #if STRESS
@@ -196,7 +201,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 							if (cacheEntry.compositeReadyToRunReader == null)
 							{
 								disassemblingReader = reader;
-								file = method.ParentModule.PEFile;
+								file = method.ParentModule.MetadataFile as PEFile;
 							}
 							else
 							{
@@ -204,7 +209,7 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 								file = ((IlSpyAssemblyMetadata)readyToRunMethod.ComponentReader).Module;
 							}
 
-							new ReadyToRunDisassembler(output, disassemblingReader, runtimeFunction).Disassemble(file, bitness, (ulong)runtimeFunction.StartAddress, showMetadataTokens, showMetadataTokensInBase10);
+							new ReadyToRunDisassembler(output, disassemblingReader, runtimeFunction, settingsService).Disassemble(file, bitness, (ulong)runtimeFunction.StartAddress, showMetadataTokens, showMetadataTokensInBase10);
 						}
 					}
 				}
@@ -217,36 +222,44 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 		public override RichText GetRichTextTooltip(IEntity entity)
 		{
-			return Languages.ILLanguage.GetRichTextTooltip(entity);
+			return exportProvider.GetExportedValue<LanguageService>().ILLanguage.GetRichTextTooltip(entity);
 		}
 
-		private ReadyToRunReaderCacheEntry GetReader(LoadedAssembly assembly, PEFile module)
+		private ReadyToRunReaderCacheEntry GetReader(LoadedAssembly assembly, MetadataFile file)
 		{
 			ReadyToRunReaderCacheEntry result;
 			lock (readyToRunReaders)
 			{
-				if (!readyToRunReaders.TryGetValue(module, out result))
+				if (!readyToRunReaders.TryGetValue(file, out result))
 				{
 					result = new ReadyToRunReaderCacheEntry();
 					try
 					{
-						result.readyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), new StandaloneAssemblyMetadata(module.Reader), module.Reader, module.FileName);
-						if (result.readyToRunReader.Machine != Machine.Amd64 && result.readyToRunReader.Machine != Machine.I386)
+						if (file is not PEFile module)
 						{
-							result.failureReason = $"Architecture {result.readyToRunReader.Machine} is not currently supported.";
 							result.readyToRunReader = null;
+							result.failureReason = "File is not a valid PE file.";
 						}
-						else if (result.readyToRunReader.OwnerCompositeExecutable != null)
+						else
 						{
-							string compositePath = Path.Combine(Path.GetDirectoryName(module.FileName), result.readyToRunReader.OwnerCompositeExecutable);
-							result.compositeReadyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), compositePath);
+							result.readyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), new StandaloneAssemblyMetadata(module.Reader), module.Reader, module.FileName);
+							if (result.readyToRunReader.Machine != Machine.Amd64 && result.readyToRunReader.Machine != Machine.I386)
+							{
+								result.failureReason = $"Architecture {result.readyToRunReader.Machine} is not currently supported.";
+								result.readyToRunReader = null;
+							}
+							else if (result.readyToRunReader.OwnerCompositeExecutable != null)
+							{
+								string compositePath = Path.Combine(Path.GetDirectoryName(module.FileName), result.readyToRunReader.OwnerCompositeExecutable);
+								result.compositeReadyToRunReader = new ReadyToRunReader(new ReadyToRunAssemblyResolver(assembly), compositePath);
+							}
 						}
 					}
 					catch (BadImageFormatException e)
 					{
 						result.failureReason = e.Message;
 					}
-					readyToRunReaders.Add(module, result);
+					readyToRunReaders.Add(file, result);
 				}
 			}
 			return result;
@@ -270,18 +283,18 @@ namespace ICSharpCode.ILSpy.ReadyToRun
 
 			public IAssemblyMetadata FindAssembly(string simpleName, string parentFile)
 			{
-				return GetAssemblyMetadata(assemblyResolver.ResolveModule(loadedAssembly.GetPEFileOrNull(), simpleName + ".dll"));
+				return GetAssemblyMetadata(assemblyResolver.ResolveModule(loadedAssembly.GetMetadataFileOrNull(), simpleName + ".dll"));
 			}
 
-			private IAssemblyMetadata GetAssemblyMetadata(PEFile module)
+			private IAssemblyMetadata GetAssemblyMetadata(MetadataFile module)
 			{
-				if (module.Reader == null)
+				if (module is not PEFile peFile || peFile.Reader == null)
 				{
 					return null;
 				}
 				else
 				{
-					return new IlSpyAssemblyMetadata(module);
+					return new IlSpyAssemblyMetadata(peFile);
 				}
 			}
 		}

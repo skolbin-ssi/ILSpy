@@ -32,7 +32,7 @@ namespace ICSharpCode.Decompiler.Documentation
 	public static class XmlDocLoader
 	{
 		static readonly Lazy<XmlDocumentationProvider> mscorlibDocumentation = new Lazy<XmlDocumentationProvider>(LoadMscorlibDocumentation);
-		static readonly ConditionalWeakTable<PEFile, XmlDocumentationProvider> cache = new ConditionalWeakTable<PEFile, XmlDocumentationProvider>();
+		static readonly ConditionalWeakTable<MetadataFile, XmlDocumentationProvider> cache = new();
 
 		static XmlDocumentationProvider LoadMscorlibDocumentation()
 		{
@@ -48,7 +48,7 @@ namespace ICSharpCode.Decompiler.Documentation
 			get { return mscorlibDocumentation.Value; }
 		}
 
-		public static XmlDocumentationProvider LoadDocumentation(PEFile module)
+		public static XmlDocumentationProvider LoadDocumentation(MetadataFile module)
 		{
 			if (module == null)
 				throw new ArgumentNullException(nameof(module));
@@ -91,14 +91,25 @@ namespace ICSharpCode.Decompiler.Documentation
 					fileName = LookupLocalizedXmlDoc(Path.Combine(frameworkPath, "v1.1.4322", assemblyFileName));
 					break;
 				case TargetRuntime.Net_2_0:
-					fileName = LookupLocalizedXmlDoc(Path.Combine(frameworkPath, "v2.0.50727", assemblyFileName))
-						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, "v3.5"))
-						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, "v3.0"))
-						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v3.5\Profile\Client"));
+					fileName = LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, "v3.5", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v3.5\Profile\Client", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, "v3.0", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(frameworkPath, "v2.0.50727", assemblyFileName));
 					break;
 				case TargetRuntime.Net_4_0:
 				default:
-					fileName = LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.0", assemblyFileName))
+					fileName = LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.8.1", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.8", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.7.2", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.7.1", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.7", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.6.2", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.6.1", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.6", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.5.2", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.5.1", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.5", assemblyFileName))
+						?? LookupLocalizedXmlDoc(Path.Combine(referenceAssembliesPath, @".NETFramework\v4.0", assemblyFileName))
 						?? LookupLocalizedXmlDoc(Path.Combine(frameworkPath, "v4.0.30319", assemblyFileName));
 					break;
 			}

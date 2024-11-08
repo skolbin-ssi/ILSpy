@@ -285,7 +285,7 @@ namespace ICSharpCode.Decompiler.IL
 			{
 				IParameter parameter = method.Parameters[paramIndex - offset];
 				ILVariable ilVar = CreateILVariable(paramIndex - offset, parameter.Type, parameter.Name);
-				ilVar.IsRefReadOnly = parameter.IsIn;
+				ilVar.IsRefReadOnly = parameter.ReferenceKind is ReferenceKind.In or ReferenceKind.RefReadOnly;
 				parameterVariables[paramIndex] = ilVar;
 				paramIndex++;
 			}
@@ -308,7 +308,7 @@ namespace ICSharpCode.Decompiler.IL
 			if (UseDebugSymbols && DebugInfo is not null &&
 				DebugInfo.TryGetExtraTypeInfo((MethodDefinitionHandle)method.MetadataToken, index, out var pdbExtraTypeInfo))
 			{
-				type = ApplyPdbLocalTypeInfoTypeVisitor.Apply(type, pdbExtraTypeInfo);
+				type = ApplyAttributeTypeVisitor.ApplyAttributesToType(type, compilation, module.TypeSystemOptions, pdbExtraTypeInfo);
 			}
 
 			ILVariable ilVar = new ILVariable(kind, type, index);
@@ -690,7 +690,7 @@ namespace ICSharpCode.Decompiler.IL
 				output.WriteLine();
 			}
 			new Disassembler.MethodBodyDisassembler(output, cancellationToken) { DetectControlStructure = false }
-				.WriteExceptionHandlers(module.PEFile, method, body);
+				.WriteExceptionHandlers(module.MetadataFile, method, body);
 		}
 
 		/// <summary>
@@ -1780,7 +1780,15 @@ namespace ICSharpCode.Decompiler.IL
 
 		DecodedInstruction DecodeCallIndirect()
 		{
-			var signatureHandle = (StandaloneSignatureHandle)ReadAndDecodeMetadataToken();
+			StandaloneSignatureHandle signatureHandle;
+			try
+			{
+				signatureHandle = (StandaloneSignatureHandle)ReadAndDecodeMetadataToken();
+			}
+			catch (InvalidCastException ex)
+			{
+				throw new BadImageFormatException("Invalid calli metadata token", ex);
+			}
 			var (header, fpt) = module.DecodeMethodSignature(signatureHandle, genericContext);
 			var functionPointer = Pop(StackType.I);
 			int firstArgument = header.IsInstance ? 1 : 0;

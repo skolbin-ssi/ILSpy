@@ -1,16 +1,16 @@
 ﻿// Copyright (c) AlphaSierraPapa for the SharpDevelop Team (for details please see \doc\copyright.txt)
 // This code is distributed under MIT X11 license (for details please see \doc\license.txt)
 
+using System.Composition;
 using System.Linq;
 
 using ICSharpCode.ILSpy;
 using ICSharpCode.ILSpy.TreeNodes;
 
-using Microsoft.Win32;
-
 namespace TestPlugin
 {
 	[ExportContextMenuEntryAttribute(Header = "_Save Assembly")]
+	[Shared]
 	public class SaveAssembly : IContextMenuEntry
 	{
 		public bool IsVisible(TextViewContext context)
@@ -28,7 +28,7 @@ namespace TestPlugin
 			if (context.SelectedTreeNodes == null)
 				return;
 			AssemblyTreeNode node = (AssemblyTreeNode)context.SelectedTreeNodes[0];
-			var asm = node.LoadedAssembly.GetPEFileOrNull();
+			var asm = node.LoadedAssembly.GetMetadataFileOrNull();
 			if (asm != null)
 			{
 				/*SaveFileDialog dlg = new SaveFileDialog();

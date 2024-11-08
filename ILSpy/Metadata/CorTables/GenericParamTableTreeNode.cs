@@ -21,23 +21,16 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class GenericParamTableTreeNode : MetadataTableTreeNode
 	{
-		public GenericParamTableTreeNode(PEFile module)
-			: base(HandleKind.GenericParameter, module)
+		public GenericParamTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.GenericParam, metadataFile)
 		{
 		}
-
-		public override object Text => $"2A GenericParam ({module.Metadata.GetTableRowCount(TableIndex.GenericParam)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -49,9 +42,9 @@ namespace ICSharpCode.ILSpy.Metadata
 			var list = new List<GenericParamEntry>();
 			GenericParamEntry scrollTargetEntry = default;
 
-			for (int row = 1; row <= module.Metadata.GetTableRowCount(TableIndex.GenericParam); row++)
+			for (int row = 1; row <= metadataFile.Metadata.GetTableRowCount(TableIndex.GenericParam); row++)
 			{
-				GenericParamEntry entry = new GenericParamEntry(module, MetadataTokens.GenericParameterHandle(row));
+				GenericParamEntry entry = new GenericParamEntry(metadataFile, MetadataTokens.GenericParameterHandle(row));
 				if (entry.RID == this.scrollTarget)
 				{
 					scrollTargetEntry = entry;
@@ -72,9 +65,7 @@ namespace ICSharpCode.ILSpy.Metadata
 
 		struct GenericParamEntry
 		{
-			readonly int metadataOffset;
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly GenericParameterHandle handle;
 			readonly GenericParameter genericParam;
 
@@ -82,9 +73,9 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public int Token => MetadataTokens.GetToken(handle);
 
-			public int Offset => metadataOffset
-				+ metadata.GetTableMetadataOffset(TableIndex.GenericParam)
-				+ metadata.GetTableRowSize(TableIndex.GenericParam) * (RID - 1);
+			public int Offset => metadataFile.MetadataOffset
+				+ metadataFile.Metadata.GetTableMetadataOffset(TableIndex.GenericParam)
+				+ metadataFile.Metadata.GetTableRowSize(TableIndex.GenericParam) * (RID - 1);
 
 			public int Number => genericParam.Index;
 
@@ -101,30 +92,23 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public void OnOwnerClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, genericParam.Parent, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, genericParam.Parent, protocol: "metadata")));
 			}
 
 			string ownerTooltip;
-			public string OwnerTooltip => GenerateTooltip(ref ownerTooltip, module, genericParam.Parent);
+			public string OwnerTooltip => GenerateTooltip(ref ownerTooltip, metadataFile, genericParam.Parent);
 
-			public string Name => metadata.GetString(genericParam.Name);
+			public string Name => metadataFile.Metadata.GetString(genericParam.Name);
 
 			public string NameTooltip => $"{MetadataTokens.GetHeapOffset(genericParam.Name):X} \"{Name}\"";
 
-			public GenericParamEntry(PEFile module, GenericParameterHandle handle)
+			public GenericParamEntry(MetadataFile metadataFile, GenericParameterHandle handle)
 			{
-				this.metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadataFile = metadataFile;
 				this.handle = handle;
-				this.genericParam = metadata.GetGenericParameter(handle);
+				this.genericParam = metadataFile.Metadata.GetGenericParameter(handle);
 				this.ownerTooltip = null;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "GenericParams");
 		}
 	}
 }

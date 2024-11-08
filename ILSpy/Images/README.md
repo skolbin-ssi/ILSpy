@@ -10,7 +10,7 @@ Icons used in ILSpy:
 | Back                      |  x  |  x   | VS 2017 Icon Pack (Backward)                                                    |         |
 | Class                     |  x  |  x   | VS 2017 Icon Pack (Class)                                                       |         |
 | Close                     |  x  |  x   | VS 2017 Icon Pack (Clear)                                                       |         |
-| CollapseAll               |  x  |  x   | VS 2017 Icon Pack (CollapseAll)                                                 |         | 
+| CollapseAll               |  x  |  x   | VS 2017 Icon Pack (CollapseAll)                                                 |         |
 | Constructor               |  x  |  x   | based on VS 2017 Icon Pack (Method) using a different colour                    |         |
 | Copy                      |  x  |  x   | VS 2017 Icon Pack (Copy)                                                        |         |
 | Delegate                  |  x  |  x   | VS 2017 Icon Pack (Delegate)                                                    |         |
@@ -18,6 +18,7 @@ Icons used in ILSpy:
 | Enum                      |  x  |  x   | VS 2017 Icon Pack (Enumerator)                                                  |         |
 | EnumValue                 |  x  |  x   | VS 2017 Icon Pack (EnumItem)                                                    |         |
 | Event                     |  x  |  x   | VS 2017 Icon Pack (Event)                                                       |         |
+| ExportOverlay             |  x  |  x   | slightly modified VS 2017 Icon Pack (Export)                                    |         |
 | ExtensionMethod           |  x  |  x   | VS 2017 Icon Pack (ExtensionMethod)                                             |         |
 | Field                     |  x  |  x   | VS 2017 Icon Pack (Field)                                                       |         |
 | FieldReadOnly             |  x  |  x   | VS 2017 Icon Pack (Field) with different color                                  |         |
@@ -25,10 +26,18 @@ Icons used in ILSpy:
 | Folder.Closed             |  x  |  x   | VS 2017 Icon Pack (Folder)                                                      |         |
 | Folder.Open               |  x  |  x   | VS 2017 Icon Pack (FolderOpen)                                                  |         |
 | Forward                   |  x  |  x   | VS 2017 Icon Pack (Forward)                                                     |         |
+| Header                    |  x  |  x   | VS 2017 Icon Pack (PageHeader)                                                  |         |
+| Heap                      |  x  |  x   | VS 2017 Icon Pack (Datalist)                                                    |         |
 | Indexer                   |  x  |  x   | VS 2017 Icon Pack (Indexer)                                                     |         |
 | Interface                 |  x  |  x   | VS 2017 Icon Pack (Interface)                                                   |         |
 | Library                   |  x  |  x   | VS 2017 Icon Pack (Library)                                                     |         |
+| ListFolder                |  x  |  x   | VS 2017 Icon Pack (ListFolder)                                                  |         |
+| ListFolder.Open           |  x  |  x   | VS 2017 Icon Pack (ListFolderOpen)                                              |         |
 | Literal                   |  x  |  x   | VS 2017 Icon Pack (Literal)                                                     |         |
+| Metadata                  |  x  |  x   | VS 2017 Icon Pack (Metadata)                                                    |         |
+| MetadataFile              |  x  |  x   | combined ProgramDebugDatabase + Metadata                                        |         |
+| MetadataTable             |  x  |  x   | VS 2017 Icon Pack (LinkedTable)                                                 |         |
+| MetadataTableGroup        |  x  |  x   | VS 2017 Icon Pack (LinkedTableGroup)                                            |         |
 | Method                    |  x  |  x   | VS 2017 Icon Pack (Method)                                                      |         |
 | Namespace                 |  x  |  x   | VS 2017 Icon Pack (Namespace)                                                   |         |
 | OK                        |  x  |  x   | VS 2017 Icon Pack (StatusOK)                                                    |         |
@@ -42,14 +51,16 @@ Icons used in ILSpy:
 | OverlayProtectedInternal  |  x  |  x   | combined OverlayProtected and OverlayInternal                                   |         |
 | OverlayStatic             |  x  |  x   | custom                                                                          |         |
 | PInvokeMethod             |  x  |  x   | based on VS 2017 Icon Pack (ExtensionMethod) with rotated arrow                 |         |
+| ProgramDebugDatabase      |  x  |  x   | VS 2017 Icon Pack (ProgramDebugDatabase)                                        |         |
 | Property                  |  x  |  x   | VS 2017 Icon Pack (Property)                                                    |         |
 | ReferenceFolder           |  x  |  x   | combined VS 2017 Icon Pack (Reference) two times                                |         |
+| ReferenceOverlay          |  x  |  x   | extracted arrow from VS 2017 Icon Pack (TypeShortcut)                           |         |
 | Refresh                   |  x  |  x   | VS 2017 Icon Pack (Refresh)                                                     |         |
 | Resource                  |  x  |  x   | VS 2017 Icon Pack (Document)                                                    |         |
 | ResourceImage             |  x  |  x   | VS 2017 Icon Pack (Image)                                                       |         |
 | ResourceResourcesFile     |  x  |  x   | VS 2017 Icon Pack (LocalResources)                                              |         |
 | ResourceXml               |  x  |  x   | VS 2017 Icon Pack (XMLFile)                                                     |         |
-| ResourceXsd               |  x  |  x   | combined VS 2017 Icon Pack (XMLSchema) with the "file symbol in ResourceXslt    |         |
+| ResourceXsd               |  x  |  x   | combined VS 2017 Icon Pack (XMLSchema) with the file symbol in ResourceXslt     |         |
 | ResourceXsl               |  x  |  x   | VS 2017 Icon Pack (XMLTransformation)                                           |         |
 | ResourceXslt              |  x  |  x   | VS 2017 Icon Pack (XSLTTemplate)                                                |         |
 | Save                      |  x  |  x   | VS 2017 Icon Pack (Save)                                                        |         |

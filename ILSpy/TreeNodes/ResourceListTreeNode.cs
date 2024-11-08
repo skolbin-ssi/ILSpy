@@ -23,7 +23,6 @@ using System.Windows.Threading;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.ILSpy.Properties;
-using ICSharpCode.ILSpyX.Abstractions;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
@@ -32,9 +31,9 @@ namespace ICSharpCode.ILSpy.TreeNodes
 	/// </summary>
 	sealed class ResourceListTreeNode : ILSpyTreeNode
 	{
-		readonly PEFile module;
+		readonly MetadataFile module;
 
-		public ResourceListTreeNode(PEFile module)
+		public ResourceListTreeNode(MetadataFile module)
 		{
 			this.LazyLoading = true;
 			this.module = module;
@@ -52,7 +51,7 @@ namespace ICSharpCode.ILSpy.TreeNodes
 				this.Children.Add(ResourceTreeNode.Create(r));
 		}
 
-		public override FilterResult Filter(FilterSettings settings)
+		public override FilterResult Filter(LanguageSettings settings)
 		{
 			if (string.IsNullOrEmpty(settings.SearchTerm))
 				return FilterResult.MatchAndRecurse;

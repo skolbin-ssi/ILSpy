@@ -16,6 +16,8 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 using System;
+using System.Collections.Generic;
+using System.Composition;
 using System.Windows.Media;
 
 using ICSharpCode.Decompiler.Metadata;
@@ -105,14 +107,14 @@ namespace ICSharpCode.ILSpy.Search
 				Name = GetLanguageSpecificName(entity),
 				Location = declaringType != null ? language.TypeToString(declaringType, includeNamespace: true) : entity.Namespace,
 				Assembly = entity.ParentModule.FullAssemblyName,
-				ToolTip = entity.ParentModule.PEFile?.FileName,
+				ToolTip = entity.ParentModule.MetadataFile?.FileName,
 				Image = GetIcon(entity),
 				LocationImage = declaringType != null ? TypeTreeNode.GetIcon(declaringType) : Images.Namespace,
 				AssemblyImage = Images.Assembly,
 			};
 		}
 
-		public ResourceSearchResult Create(PEFile module, Resource resource, ITreeNode node, ITreeNode parent)
+		public ResourceSearchResult Create(MetadataFile module, Resource resource, ITreeNode node, ITreeNode parent)
 		{
 			return new ResourceSearchResult {
 				Resource = resource,
@@ -127,7 +129,7 @@ namespace ICSharpCode.ILSpy.Search
 			};
 		}
 
-		public AssemblySearchResult Create(PEFile module)
+		public AssemblySearchResult Create(MetadataFile module)
 		{
 			return new AssemblySearchResult {
 				Module = module,
@@ -142,7 +144,7 @@ namespace ICSharpCode.ILSpy.Search
 			};
 		}
 
-		public NamespaceSearchResult Create(PEFile module, INamespace ns)
+		public NamespaceSearchResult Create(MetadataFile module, INamespace ns)
 		{
 			var name = ns.FullName.Length == 0 ? "-" : ns.FullName;
 			return new NamespaceSearchResult {
@@ -158,6 +160,8 @@ namespace ICSharpCode.ILSpy.Search
 		}
 	}
 
+	[Export(typeof(ITreeNodeFactory))]
+	[Shared]
 	internal class TreeNodeFactory : ITreeNodeFactory
 	{
 		public ITreeNode Create(Resource resource)
@@ -165,7 +169,7 @@ namespace ICSharpCode.ILSpy.Search
 			return ResourceTreeNode.Create(resource);
 		}
 
-		public ITreeNode CreateResourcesList(PEFile module)
+		public ITreeNode CreateResourcesList(MetadataFile module)
 		{
 			return new ResourceListTreeNode(module);
 		}

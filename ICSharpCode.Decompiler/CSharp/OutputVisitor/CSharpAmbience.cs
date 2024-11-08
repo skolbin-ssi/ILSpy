@@ -85,6 +85,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 							break;
 						case ClassType.RecordStruct:
 							writer.WriteKeyword(Roles.RecordKeyword, "record");
+							writer.Space();
 							writer.WriteKeyword(Roles.StructKeyword, "struct");
 							break;
 						default:
@@ -135,7 +136,9 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 				{
 					if ((ConversionFlags & ConversionFlags.ShowParameterModifiers) == 0)
 					{
-						param.ParameterModifier = ParameterModifier.None;
+						param.ParameterModifier = ReferenceKind.None;
+						param.IsScopedRef = false;
+						param.IsParams = false;
 					}
 					if ((ConversionFlags & ConversionFlags.ShowParameterDefaultValues) == 0)
 					{
@@ -179,8 +182,7 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 
 			if ((ConversionFlags & ConversionFlags.ShowBody) == ConversionFlags.ShowBody && !(node is TypeDeclaration))
 			{
-				IProperty property = symbol as IProperty;
-				if (property != null)
+				if (symbol is IProperty property)
 				{
 					writer.Space();
 					writer.WriteToken(Roles.LBrace, "{");
@@ -193,7 +195,10 @@ namespace ICSharpCode.Decompiler.CSharp.OutputVisitor
 					}
 					if (property.CanSet)
 					{
-						writer.WriteKeyword(PropertyDeclaration.SetKeywordRole, "set");
+						if ((ConversionFlags & ConversionFlags.SupportInitAccessors) != 0 && property.Setter.IsInitOnly)
+							writer.WriteKeyword(PropertyDeclaration.InitKeywordRole, "init");
+						else
+							writer.WriteKeyword(PropertyDeclaration.SetKeywordRole, "set");
 						writer.WriteToken(Roles.Semicolon, ";");
 						writer.Space();
 					}

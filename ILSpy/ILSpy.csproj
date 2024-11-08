@@ -1,5 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -45,9 +44,13 @@
   <ItemGroup>
     <PackageReference Include="AvalonEdit" />
     <PackageReference Include="Dirkster.AvalonDock.Themes.VS2013" />
-    <PackageReference Include="Microsoft.VisualStudio.Composition" />
+    <PackageReference Include="McMaster.Extensions.CommandLineUtils" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
     <PackageReference Include="DataGridExtensions" />
     <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" />
+    <PackageReference Include="NaturalSort.Extension" />
+    <PackageReference Include="TomsToolbox.Composition.MicrosoftExtensions" />
+    <PackageReference Include="TomsToolbox.Wpf.Composition.AttributedModel" />
     <PackageReference Include="TomsToolbox.Wpf.Styles" />
   </ItemGroup>
 
@@ -64,7 +67,6 @@
     <EmbeddedResource Include="TextView\ILAsm-Mode.xshd" />
     <EmbeddedResource Include="TextView\Asm-Mode.xshd" />
     <EmbeddedResource Include="TextView\XML-Mode.xshd" />
-    <None Remove="Properties\launchSettings.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -85,13 +87,12 @@
   <ItemGroup>
     <ProjectReference Include="..\ICSharpCode.ILSpyX\ICSharpCode.ILSpyX.csproj" />
     <ProjectReference Include="..\ICSharpCode.Decompiler\ICSharpCode.Decompiler.csproj" />
-    <ProjectReference Include="..\SharpTreeView\ICSharpCode.TreeView.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Debug'">
     <PackageReference Include="Microsoft.DiaSymReader.Converter.Xml" />
-	<PackageReference Include="Microsoft.DiaSymReader" />
-	<PackageReference Include="Microsoft.DiaSymReader.Native" />
+    <PackageReference Include="Microsoft.DiaSymReader" />
+    <PackageReference Include="Microsoft.DiaSymReader.Native" />
   </ItemGroup>
 
   <PropertyGroup>

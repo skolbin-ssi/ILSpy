@@ -1,15 +1,31 @@
-﻿using System;
+﻿// Copyright (c) 2018 Siegfried Pammer
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this
+// software and associated documentation files (the "Software"), to deal in the Software
+// without restriction, including without limitation the rights to use, copy, modify, merge,
+// publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons
+// to whom the Software is furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all copies or
+// substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+// INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+// PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+// FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
-using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.TypeSystem.Implementation;
@@ -21,33 +37,11 @@ namespace ICSharpCode.Decompiler.Metadata
 {
 	public static class MetadataExtensions
 	{
-		static HashAlgorithm GetHashAlgorithm(this MetadataReader reader)
-		{
-			switch (reader.GetAssemblyDefinition().HashAlgorithm)
-			{
-				case AssemblyHashAlgorithm.None:
-					// only for multi-module assemblies?
-					return SHA1.Create();
-				case AssemblyHashAlgorithm.MD5:
-					return MD5.Create();
-				case AssemblyHashAlgorithm.Sha1:
-					return SHA1.Create();
-				case AssemblyHashAlgorithm.Sha256:
-					return SHA256.Create();
-				case AssemblyHashAlgorithm.Sha384:
-					return SHA384.Create();
-				case AssemblyHashAlgorithm.Sha512:
-					return SHA512.Create();
-				default:
-					return SHA1.Create(); // default?
-			}
-		}
-
 		static string CalculatePublicKeyToken(BlobHandle blob, MetadataReader reader)
 		{
 			// Calculate public key token:
-			// 1. hash the public key using the appropriate algorithm.
-			byte[] publicKeyTokenBytes = reader.GetHashAlgorithm().ComputeHash(reader.GetBlobBytes(blob));
+			// 1. hash the public key (always use SHA1).
+			byte[] publicKeyTokenBytes = SHA1.Create().ComputeHash(reader.GetBlobBytes(blob));
 			// 2. take the last 8 bytes
 			// 3. according to Cecil we need to reverse them, other sources did not mention this.
 			return publicKeyTokenBytes.TakeLast(8).Reverse().ToHexString(8);
@@ -451,5 +445,23 @@ namespace ICSharpCode.Decompiler.Metadata
 				return new(metadataReader.MetadataPointer, metadataReader.MetadataLength);
 			}
 		}
+
+		public static uint ReadULEB128(this BinaryReader reader)
+		{
+			uint val = 0;
+			int shift = 0;
+			while (true)
+			{
+				byte b = reader.ReadByte();
+				val |= (b & 0b0111_1111u) << shift;
+				if ((b & 0b1000_0000) == 0)
+					break;
+				shift += 7;
+				if (shift >= 35)
+					throw new OverflowException();
+			}
+			return val;
+		}
+
 	}
 }

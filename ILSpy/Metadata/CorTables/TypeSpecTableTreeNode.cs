@@ -28,14 +28,10 @@ namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class TypeSpecTableTreeNode : MetadataTableTreeNode
 	{
-		public TypeSpecTableTreeNode(PEFile module)
-			: base(HandleKind.TypeSpecification, module)
+		public TypeSpecTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.TypeSpec, metadataFile)
 		{
 		}
-
-		public override object Text => $"1B TypeSpec ({module.Metadata.GetTableRowCount(TableIndex.TypeSpec)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -43,14 +39,14 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			var metadata = module.Metadata;
+			var metadata = metadataFile.Metadata;
 
 			var list = new List<TypeSpecEntry>();
 			TypeSpecEntry scrollTargetEntry = default;
 
 			foreach (var row in metadata.GetTypeSpecifications())
 			{
-				TypeSpecEntry entry = new TypeSpecEntry(module, row);
+				TypeSpecEntry entry = new TypeSpecEntry(metadataFile, row);
 				if (scrollTarget.Equals(row))
 				{
 					scrollTargetEntry = entry;
@@ -73,7 +69,7 @@ namespace ICSharpCode.ILSpy.Metadata
 		struct TypeSpecEntry
 		{
 			readonly int metadataOffset;
-			readonly PEFile module;
+			readonly MetadataFile module;
 			readonly MetadataReader metadata;
 			readonly TypeSpecificationHandle handle;
 			readonly TypeSpecification typeSpec;
@@ -97,19 +93,14 @@ namespace ICSharpCode.ILSpy.Metadata
 				}
 			}
 
-			public TypeSpecEntry(PEFile module, TypeSpecificationHandle handle)
+			public TypeSpecEntry(MetadataFile metadataFile, TypeSpecificationHandle handle)
 			{
-				this.metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.module = metadataFile;
+				this.metadataOffset = metadataFile.MetadataOffset;
+				this.metadata = metadataFile.Metadata;
 				this.handle = handle;
 				this.typeSpec = metadata.GetTypeSpecification(handle);
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "TypeSpecs");
 		}
 	}
 }

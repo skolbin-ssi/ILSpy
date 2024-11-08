@@ -775,6 +775,15 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Automatically load assembly references.
+        /// </summary>
+        public static string DecompilerSettings_AutoLoadAssemblyReferences {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.AutoLoadAssemblyReferences", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to User-defined checked operators.
         /// </summary>
         public static string DecompilerSettings_CheckedOperators {
@@ -1146,15 +1155,6 @@ namespace ICSharpCode.ILSpy.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Use parameter null checking.
-        /// </summary>
-        public static string DecompilerSettings_ParameterNullCheck {
-            get {
-                return ResourceManager.GetString("DecompilerSettings.ParameterNullCheck", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Pattern combinators (and, or, not).
         /// </summary>
         public static string DecompilerSettings_PatternCombinators {
@@ -1223,6 +1223,15 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_RecursivePatternMatching {
             get {
                 return ResourceManager.GetString("DecompilerSettings.RecursivePatternMatching", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to &apos;ref readonly&apos; parameters.
+        /// </summary>
+        public static string DecompilerSettings_RefReadOnlyParameters {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.RefReadOnlyParameters", resourceCulture);
             }
         }
         
@@ -1466,6 +1475,16 @@ namespace ICSharpCode.ILSpy.Properties {
         public static string DecompilerSettings_UsePatternBasedFixedStatement {
             get {
                 return ResourceManager.GetString("DecompilerSettings.UsePatternBasedFixedStatement", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use primary constructor syntax for non-record types.
+        /// </summary>
+        public static string DecompilerSettings_UsePrimaryConstructorDecompilerSettings_SyntaxForNonRecordTypes {
+            get {
+                return ResourceManager.GetString("DecompilerSettings.UsePrimaryConstructorDecompilerSettings.SyntaxForNonRecordType" +
+                        "s", resourceCulture);
             }
         }
         

@@ -17,7 +17,6 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 
 using ICSharpCode.Decompiler;
@@ -64,14 +63,18 @@ namespace ICSharpCode.ILSpy.TreeNodes
 		internal static IEnumerable<DerivedTypesEntryNode> FindDerivedTypes(AssemblyList list, ITypeDefinition type,
 			CancellationToken cancellationToken)
 		{
-			var definitionMetadata = type.ParentModule.PEFile.Metadata;
+			var definitionMetadata = type.ParentModule.MetadataFile.Metadata;
 			var metadataToken = (SRM.TypeDefinitionHandle)type.MetadataToken;
-			var assemblies = list.GetAllAssemblies().GetAwaiter().GetResult()
-				.Select(node => node.GetPEFileOrNull()).Where(asm => asm != null).ToArray();
-			foreach (var module in assemblies)
+			var assemblies = list.GetAllAssemblies().GetAwaiter().GetResult();
+			foreach (var loadedAssembly in assemblies)
 			{
+				var module = loadedAssembly.GetMetadataFileOrNull();
+				if (module == null)
+					continue;
 				var metadata = module.Metadata;
-				var assembly = (MetadataModule)module.GetTypeSystemOrNull().MainModule;
+				var assembly = module.GetTypeSystemOrNull()?.MainModule as MetadataModule;
+				if (assembly == null)
+					continue;
 				foreach (var h in metadata.TypeDefinitions)
 				{
 					cancellationToken.ThrowIfCancellationRequested();

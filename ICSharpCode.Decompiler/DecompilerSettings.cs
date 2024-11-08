@@ -152,7 +152,6 @@ namespace ICSharpCode.Decompiler
 			}
 			if (languageVersion < CSharp.LanguageVersion.CSharp11_0)
 			{
-				parameterNullCheck = false;
 				scopedRef = false;
 				requiredMembers = false;
 				numericIntPtr = false;
@@ -160,11 +159,18 @@ namespace ICSharpCode.Decompiler
 				unsignedRightShift = false;
 				checkedOperators = false;
 			}
+			if (languageVersion < CSharp.LanguageVersion.CSharp12_0)
+			{
+				refReadOnlyParameters = false;
+				usePrimaryConstructorSyntaxForNonRecordTypes = false;
+			}
 		}
 
 		public CSharp.LanguageVersion GetMinimumRequiredVersion()
 		{
-			if (parameterNullCheck || scopedRef || requiredMembers || numericIntPtr || utf8StringLiterals || unsignedRightShift || checkedOperators)
+			if (refReadOnlyParameters || usePrimaryConstructorSyntaxForNonRecordTypes)
+				return CSharp.LanguageVersion.CSharp12_0;
+			if (scopedRef || requiredMembers || numericIntPtr || utf8StringLiterals || unsignedRightShift || checkedOperators)
 				return CSharp.LanguageVersion.CSharp11_0;
 			if (fileScopedNamespaces || recordStructs)
 				return CSharp.LanguageVersion.CSharp10_0;
@@ -438,26 +444,6 @@ namespace ICSharpCode.Decompiler
 				if (fileScopedNamespaces != value)
 				{
 					fileScopedNamespaces = value;
-					OnPropertyChanged();
-				}
-			}
-		}
-
-		bool parameterNullCheck = false;
-
-		/// <summary>
-		/// Use C# 11 preview parameter null-checking (<code>string param!!</code>).
-		/// </summary>
-		[Category("C# 11.0 / VS 2022.4")]
-		[Description("DecompilerSettings.ParameterNullCheck")]
-		[Browsable(false)]
-		[Obsolete("This feature did not make it into C# 11, and may be removed in a future version of the decompiler.")]
-		public bool ParameterNullCheck {
-			get { return parameterNullCheck; }
-			set {
-				if (parameterNullCheck != value)
-				{
-					parameterNullCheck = value;
 					OnPropertyChanged();
 				}
 			}
@@ -1959,6 +1945,21 @@ namespace ICSharpCode.Decompiler
 			}
 		}
 
+		bool autoLoadAssemblyReferences = true;
+
+		[Category("DecompilerSettings.Other")]
+		[Description("DecompilerSettings.AutoLoadAssemblyReferences")]
+		public bool AutoLoadAssemblyReferences {
+			get { return autoLoadAssemblyReferences; }
+			set {
+				if (autoLoadAssemblyReferences != value)
+				{
+					autoLoadAssemblyReferences = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
 		#endregion
 
 		bool forStatement = true;
@@ -1992,6 +1993,42 @@ namespace ICSharpCode.Decompiler
 				if (doWhileStatement != value)
 				{
 					doWhileStatement = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool refReadOnlyParameters = true;
+
+		/// <summary>
+		/// Gets/sets whether RequiresLocationAttribute on parameters should be replaced with 'ref readonly' modifiers.
+		/// </summary>
+		[Category("C# 12.0 / VS 2022.8")]
+		[Description("DecompilerSettings.RefReadOnlyParameters")]
+		public bool RefReadOnlyParameters {
+			get { return refReadOnlyParameters; }
+			set {
+				if (refReadOnlyParameters != value)
+				{
+					refReadOnlyParameters = value;
+					OnPropertyChanged();
+				}
+			}
+		}
+
+		bool usePrimaryConstructorSyntaxForNonRecordTypes = true;
+
+		/// <summary>
+		/// Use primary constructor syntax with classes and structs.
+		/// </summary>
+		[Category("C# 12.0 / VS 2022.8")]
+		[Description("DecompilerSettings.UsePrimaryConstructorSyntaxForNonRecordTypes")]
+		public bool UsePrimaryConstructorSyntaxForNonRecordTypes {
+			get { return usePrimaryConstructorSyntaxForNonRecordTypes; }
+			set {
+				if (usePrimaryConstructorSyntaxForNonRecordTypes != value)
+				{
+					usePrimaryConstructorSyntaxForNonRecordTypes = value;
 					OnPropertyChanged();
 				}
 			}

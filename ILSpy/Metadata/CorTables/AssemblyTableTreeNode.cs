@@ -17,26 +17,20 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
-using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class AssemblyTableTreeNode : MetadataTableTreeNode
 	{
-		public AssemblyTableTreeNode(PEFile module)
-			: base(HandleKind.AssemblyDefinition, module)
+		public AssemblyTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.Assembly, metadataFile)
 		{
 		}
-
-		public override object Text => $"20 Assembly ({module.Metadata.GetTableRowCount(TableIndex.Assembly)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -44,9 +38,9 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			if (module.IsAssembly)
+			if (metadataFile.Metadata.IsAssembly)
 			{
-				view.ItemsSource = new[] { new AssemblyEntry(module) };
+				view.ItemsSource = new[] { new AssemblyEntry(metadataFile.Metadata, metadataFile.MetadataOffset) };
 			}
 			else
 			{
@@ -57,10 +51,9 @@ namespace ICSharpCode.ILSpy.Metadata
 			return true;
 		}
 
-		struct AssemblyEntry
+		readonly struct AssemblyEntry
 		{
 			readonly int metadataOffset;
-			readonly PEFile module;
 			readonly MetadataReader metadata;
 			readonly AssemblyDefinition assembly;
 
@@ -96,18 +89,12 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public string Culture => metadata.GetString(assembly.Culture);
 
-			public AssemblyEntry(PEFile module)
+			public AssemblyEntry(MetadataReader metadata, int metadataOffset)
 			{
-				this.metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadata = metadata;
+				this.metadataOffset = metadataOffset;
 				this.assembly = metadata.GetAssemblyDefinition();
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "Assembly");
 		}
 	}
 }

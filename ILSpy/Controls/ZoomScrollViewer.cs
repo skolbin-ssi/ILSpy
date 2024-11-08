@@ -108,7 +108,7 @@ namespace ICSharpCode.ILSpy.Controls
 				z.ComputedZoomButtonCollapsed = (z.AlwaysShowZoomButtons == false) && (z.CurrentZoom == 1.0);
 		}
 
-		protected override void OnMouseWheel(MouseWheelEventArgs e)
+		protected override void OnPreviewMouseWheel(MouseWheelEventArgs e)
 		{
 			if (!e.Handled && Keyboard.Modifiers == ModifierKeys.Control && MouseWheelZoom)
 			{
@@ -165,7 +165,7 @@ namespace ICSharpCode.ILSpy.Controls
 
 				e.Handled = true;
 			}
-			base.OnMouseWheel(e);
+			base.OnPreviewMouseWheel(e);
 		}
 
 		internal static double RoundToOneIfClose(double val)
@@ -174,23 +174,6 @@ namespace ICSharpCode.ILSpy.Controls
 				return 1.0;
 			else
 				return val;
-		}
-	}
-
-	sealed class IsNormalZoomConverter : IValueConverter
-	{
-		public static readonly IsNormalZoomConverter Instance = new IsNormalZoomConverter();
-
-		public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-		{
-			if (parameter is bool && (bool)parameter)
-				return true;
-			return ((double)value) == 1.0;
-		}
-
-		public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-		{
-			throw new NotImplementedException();
 		}
 	}
 }

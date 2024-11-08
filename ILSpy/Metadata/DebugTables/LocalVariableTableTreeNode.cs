@@ -20,24 +20,16 @@ using System.Collections.Generic;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	internal class LocalVariableTableTreeNode : DebugMetadataTableTreeNode
 	{
-		private readonly bool isEmbedded;
-
-		public LocalVariableTableTreeNode(PEFile module, MetadataReader metadata, bool isEmbedded)
-			: base(HandleKind.LocalVariable, module, metadata)
+		public LocalVariableTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.LocalVariable, metadataFile)
 		{
-			this.isEmbedded = isEmbedded;
 		}
-
-		public override object Text => $"33 LocalVariable ({metadata.GetTableRowCount(TableIndex.LocalVariable)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -48,9 +40,9 @@ namespace ICSharpCode.ILSpy.Metadata
 			var list = new List<LocalVariableEntry>();
 			LocalVariableEntry scrollTargetEntry = default;
 
-			foreach (var row in metadata.LocalVariables)
+			foreach (var row in metadataFile.Metadata.LocalVariables)
 			{
-				LocalVariableEntry entry = new LocalVariableEntry(module, metadata, isEmbedded, row);
+				LocalVariableEntry entry = new LocalVariableEntry(metadataFile, row);
 				if (entry.RID == scrollTarget)
 				{
 					scrollTargetEntry = entry;
@@ -73,8 +65,7 @@ namespace ICSharpCode.ILSpy.Metadata
 		struct LocalVariableEntry
 		{
 			readonly int? offset;
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly LocalVariableHandle handle;
 			readonly LocalVariable localVar;
 
@@ -93,24 +84,18 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public int Index => localVar.Index;
 
-			public string Name => metadata.GetString(localVar.Name);
+			public string Name => metadataFile.Metadata.GetString(localVar.Name);
 
 			public string NameTooltip => $"{MetadataTokens.GetHeapOffset(localVar.Name):X} \"{Name}\"";
 
-			public LocalVariableEntry(PEFile module, MetadataReader metadata, bool isEmbedded, LocalVariableHandle handle)
+			public LocalVariableEntry(MetadataFile metadataFile, LocalVariableHandle handle)
 			{
-				this.offset = isEmbedded ? null : (int?)metadata.GetTableMetadataOffset(TableIndex.LocalVariable)
-					+ metadata.GetTableRowSize(TableIndex.LocalVariable) * (MetadataTokens.GetRowNumber(handle) - 1);
-				this.module = module;
-				this.metadata = metadata;
+				this.metadataFile = metadataFile;
+				this.offset = metadataFile.IsEmbedded ? null : (int?)metadataFile.Metadata.GetTableMetadataOffset(TableIndex.LocalVariable)
+					+ metadataFile.Metadata.GetTableRowSize(TableIndex.LocalVariable) * (MetadataTokens.GetRowNumber(handle) - 1);
 				this.handle = handle;
-				this.localVar = metadata.GetLocalVariable(handle);
+				this.localVar = metadataFile.Metadata.GetLocalVariable(handle);
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "Document");
 		}
 	}
 }

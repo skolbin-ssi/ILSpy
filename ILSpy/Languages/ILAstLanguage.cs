@@ -18,8 +18,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
@@ -28,10 +26,9 @@ using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.IL.Transforms;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
+using ICSharpCode.ILSpy.Docking;
 using ICSharpCode.ILSpy.ViewModels;
 using ICSharpCode.ILSpyX;
-
-using static System.Reflection.Metadata.PEReaderExtensions;
 
 using SRM = System.Reflection.Metadata;
 
@@ -45,13 +42,6 @@ namespace ICSharpCode.ILSpy
 	{
 		public event EventHandler StepperUpdated;
 
-		protected virtual void OnStepperUpdated(EventArgs e = null)
-		{
-			StepperUpdated?.Invoke(this, e ?? new EventArgs());
-		}
-
-		public Stepper Stepper { get; set; } = new Stepper();
-
 		readonly string name;
 
 		protected ILAstLanguage(string name)
@@ -59,12 +49,19 @@ namespace ICSharpCode.ILSpy
 			this.name = name;
 		}
 
+		protected virtual void OnStepperUpdated(EventArgs e = null)
+		{
+			StepperUpdated?.Invoke(this, e ?? new EventArgs());
+		}
+
+		public Stepper Stepper { get; set; } = new Stepper();
+
 		public override string Name { get { return name; } }
 
-		internal static IEnumerable<ILAstLanguage> GetDebugLanguages()
+		internal static IEnumerable<ILAstLanguage> GetDebugLanguages(DockWorkspace dockWorkspace)
 		{
 			yield return new TypedIL();
-			yield return new BlockIL(CSharpDecompiler.GetILTransforms());
+			yield return new BlockIL(CSharpDecompiler.GetILTransforms(), dockWorkspace);
 		}
 
 		public override string FileExtension {
@@ -77,42 +74,33 @@ namespace ICSharpCode.ILSpy
 		{
 			base.DecompileMethod(method, output, options);
 			new ReflectionDisassembler(output, options.CancellationToken)
-				.DisassembleMethodHeader(method.ParentModule.PEFile, (SRM.MethodDefinitionHandle)method.MetadataToken);
+				.DisassembleMethodHeader(method.ParentModule.MetadataFile, (SRM.MethodDefinitionHandle)method.MetadataToken);
 			output.WriteLine();
 			output.WriteLine();
 		}
 
-		class TypedIL : ILAstLanguage
+		class TypedIL() : ILAstLanguage("Typed IL")
 		{
-			public TypedIL() : base("Typed IL") { }
-
 			public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
 			{
 				base.DecompileMethod(method, output, options);
-				var module = method.ParentModule.PEFile;
+				var module = method.ParentModule.MetadataFile;
 				var methodDef = module.Metadata.GetMethodDefinition((SRM.MethodDefinitionHandle)method.MetadataToken);
 				if (!methodDef.HasBody())
 					return;
 				var typeSystem = new DecompilerTypeSystem(module, module.GetAssemblyResolver());
 				ILReader reader = new ILReader(typeSystem.MainModule);
-				var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
+				var methodBody = module.GetMethodBody(methodDef.RelativeVirtualAddress);
 				reader.WriteTypedIL((SRM.MethodDefinitionHandle)method.MetadataToken, methodBody, output, cancellationToken: options.CancellationToken);
 			}
 		}
 
-		class BlockIL : ILAstLanguage
+		class BlockIL(IReadOnlyList<IILTransform> transforms, DockWorkspace dockWorkspace) : ILAstLanguage("ILAst")
 		{
-			readonly IReadOnlyList<IILTransform> transforms;
-
-			public BlockIL(IReadOnlyList<IILTransform> transforms) : base("ILAst")
-			{
-				this.transforms = transforms;
-			}
-
 			public override void DecompileMethod(IMethod method, ITextOutput output, DecompilationOptions options)
 			{
 				base.DecompileMethod(method, output, options);
-				var module = method.ParentModule.PEFile;
+				var module = method.ParentModule.MetadataFile;
 				var metadata = module.Metadata;
 				var methodDef = metadata.GetMethodDefinition((SRM.MethodDefinitionHandle)method.MetadataToken);
 				if (!methodDef.HasBody())
@@ -121,7 +109,7 @@ namespace ICSharpCode.ILSpy
 				var typeSystem = new DecompilerTypeSystem(module, assemblyResolver);
 				var reader = new ILReader(typeSystem.MainModule);
 				reader.UseDebugSymbols = options.DecompilerSettings.UseDebugSymbols;
-				var methodBody = module.Reader.GetMethodBody(methodDef.RelativeVirtualAddress);
+				var methodBody = module.GetMethodBody(methodDef.RelativeVirtualAddress);
 				ILFunction il = reader.ReadIL((SRM.MethodDefinitionHandle)method.MetadataToken, methodBody, kind: ILFunctionKind.TopLevelFunction, cancellationToken: options.CancellationToken);
 				var decompiler = new CSharpDecompiler(typeSystem, options.DecompilerSettings) { CancellationToken = options.CancellationToken };
 				ILTransformContext context = decompiler.CreateILTransformContext(il);
@@ -150,7 +138,7 @@ namespace ICSharpCode.ILSpy
 					}
 				}
 				(output as ISmartTextOutput)?.AddButton(Images.ViewCode, "Show Steps", delegate {
-					Docking.DockWorkspace.Instance.ShowToolPane(DebugStepsPaneModel.PaneContentId);
+					dockWorkspace.ShowToolPane(DebugStepsPaneModel.PaneContentId);
 				});
 				output.WriteLine();
 				il.WriteTo(output, DebugSteps.Options);

@@ -16,83 +16,145 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Composition;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 using ICSharpCode.ILSpy.Properties;
 using ICSharpCode.ILSpy.TreeNodes;
 
+using TomsToolbox.Wpf;
+
 namespace ICSharpCode.ILSpy.Options
 {
-	public class DecompilerSettingsViewModel : INotifyPropertyChanged
+	[ExportOptionPage(Order = 10)]
+	[NonShared]
+	public sealed class DecompilerSettingsViewModel : ObservableObjectBase, IOptionPage
 	{
-		public CSharpDecompilerSetting[] Settings { get; set; }
+		private static readonly PropertyInfo[] propertyInfos = typeof(Decompiler.DecompilerSettings).GetProperties()
+			.Where(p => p.GetCustomAttribute<BrowsableAttribute>()?.Browsable != false)
+			.ToArray();
 
-		public DecompilerSettingsViewModel(Decompiler.DecompilerSettings settings)
+		public string Title => Resources.Decompiler;
+
+		private DecompilerSettingsGroupViewModel[] settings;
+		public DecompilerSettingsGroupViewModel[] Settings {
+			get => settings;
+			set => SetProperty(ref settings, value);
+		}
+
+		private DecompilerSettings decompilerSettings;
+
+		public void Load(SettingsSnapshot snapshot)
 		{
-			Settings = typeof(Decompiler.DecompilerSettings).GetProperties()
-				.Where(p => p.GetCustomAttribute<BrowsableAttribute>()?.Browsable != false)
-				.Select(p => new CSharpDecompilerSetting(p) { IsEnabled = (bool)p.GetValue(settings) })
+			decompilerSettings = snapshot.GetSettings<DecompilerSettings>();
+			LoadSettings();
+		}
+
+		private void LoadSettings()
+		{
+			this.Settings = propertyInfos
+				.Select(p => new DecompilerSettingsItemViewModel(p, decompilerSettings))
 				.OrderBy(item => item.Category, NaturalStringComparer.Instance)
-				.ThenBy(item => item.Description)
+				.GroupBy(p => p.Category)
+				.Select(g => new DecompilerSettingsGroupViewModel(g.Key, g.OrderBy(i => i.Description).ToArray()))
 				.ToArray();
 		}
 
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+		public void LoadDefaults()
 		{
-			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-		}
+			var defaults = new Decompiler.DecompilerSettings();
 
-		public Decompiler.DecompilerSettings ToDecompilerSettings()
-		{
-			var settings = new Decompiler.DecompilerSettings();
-			foreach (var item in Settings)
+			foreach (var propertyInfo in propertyInfos)
 			{
-				item.Property.SetValue(settings, item.IsEnabled);
+				propertyInfo.SetValue(decompilerSettings, propertyInfo.GetValue(defaults));
 			}
-			return settings;
+
+			LoadSettings();
 		}
 	}
-	public class CSharpDecompilerSetting : INotifyPropertyChanged
-	{
-		bool isEnabled;
 
-		public CSharpDecompilerSetting(PropertyInfo p)
+	public sealed class DecompilerSettingsGroupViewModel : ObservableObjectBase
+	{
+		private bool? areAllItemsChecked;
+
+		public DecompilerSettingsGroupViewModel(string category, DecompilerSettingsItemViewModel[] settings)
 		{
-			this.Property = p;
-			this.Category = GetResourceString(p.GetCustomAttribute<CategoryAttribute>()?.Category ?? Resources.Other);
-			this.Description = GetResourceString(p.GetCustomAttribute<DescriptionAttribute>()?.Description ?? p.Name);
+			Settings = settings;
+			Category = category;
+
+			areAllItemsChecked = GetAreAllItemsChecked(Settings);
+
+			foreach (DecompilerSettingsItemViewModel viewModel in settings)
+			{
+				viewModel.PropertyChanged += Item_PropertyChanged;
+			}
 		}
 
-		public PropertyInfo Property { get; }
-
-		public bool IsEnabled {
-			get => isEnabled;
+		public bool? AreAllItemsChecked {
+			get => areAllItemsChecked;
 			set {
-				if (value != isEnabled)
+				SetProperty(ref areAllItemsChecked, value);
+
+				if (!value.HasValue)
+					return;
+
+				foreach (var setting in Settings)
 				{
-					isEnabled = value;
-					OnPropertyChanged();
+					setting.IsEnabled = value.Value;
 				}
 			}
 		}
 
-		public string Description { get; set; }
+		public string Category { get; }
 
-		public string Category { get; set; }
+		public DecompilerSettingsItemViewModel[] Settings { get; }
 
-		public event PropertyChangedEventHandler PropertyChanged;
-
-		protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+		private void Item_PropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
-			PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+			if (e.PropertyName == nameof(DecompilerSettingsItemViewModel.IsEnabled))
+			{
+				AreAllItemsChecked = GetAreAllItemsChecked(Settings);
+			}
 		}
 
-		static string GetResourceString(string key)
+		private static bool? GetAreAllItemsChecked(ICollection<DecompilerSettingsItemViewModel> settings)
+		{
+			var numberOfEnabledItems = settings.Count(item => item.IsEnabled);
+
+			if (numberOfEnabledItems == settings.Count)
+				return true;
+
+			if (numberOfEnabledItems == 0)
+				return false;
+
+			return null;
+		}
+	}
+
+	public sealed class DecompilerSettingsItemViewModel(PropertyInfo property, DecompilerSettings decompilerSettings) : ObservableObjectBase
+	{
+		private bool isEnabled = property.GetValue(decompilerSettings) is true;
+
+		public PropertyInfo Property => property;
+
+		public bool IsEnabled {
+			get => isEnabled;
+			set {
+				if (SetProperty(ref isEnabled, value))
+				{
+					property.SetValue(decompilerSettings, value);
+				}
+			}
+		}
+
+		public string Description { get; set; } = GetResourceString(property.GetCustomAttribute<DescriptionAttribute>()?.Description ?? property.Name);
+
+		public string Category { get; set; } = GetResourceString(property.GetCustomAttribute<CategoryAttribute>()?.Category ?? Resources.Other);
+
+		private static string GetResourceString(string key)
 		{
 			var str = !string.IsNullOrEmpty(key) ? Resources.ResourceManager.GetString(key) : null;
 			return string.IsNullOrEmpty(key) || string.IsNullOrEmpty(str) ? key : str;

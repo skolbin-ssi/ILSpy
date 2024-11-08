@@ -22,9 +22,6 @@ using System.Collections.Generic;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 
 using Mono.Cecil;
@@ -33,16 +30,10 @@ namespace ICSharpCode.ILSpy.Metadata
 {
 	class ImplMapTableTreeNode : MetadataTableTreeNode
 	{
-		public ImplMapTableTreeNode(PEFile module)
-			: base((HandleKind)0x1C, module)
+		public ImplMapTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.ImplMap, metadataFile)
 		{
 		}
-
-		public override object Text => $"1C ImplMap ({module.Metadata.GetTableRowCount(TableIndex.ImplMap)})";
-
-		public override object Icon => Images.Literal;
-
-
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -50,17 +41,16 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			var metadata = module.Metadata;
+			var metadata = metadataFile.Metadata;
 
 			var list = new List<ImplMapEntry>();
 			ImplMapEntry scrollTargetEntry = default;
 
 			var length = metadata.GetTableRowCount(TableIndex.ImplMap);
 			var span = metadata.AsReadOnlySpan();
-			int metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
 			for (int rid = 1; rid <= length; rid++)
 			{
-				ImplMapEntry entry = new ImplMapEntry(module, span, metadataOffset, rid);
+				ImplMapEntry entry = new ImplMapEntry(metadataFile, span, rid);
 				if (entry.RID == this.scrollTarget)
 				{
 					scrollTargetEntry = entry;
@@ -98,8 +88,7 @@ namespace ICSharpCode.ILSpy.Metadata
 
 		struct ImplMapEntry
 		{
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly ImplMap implMap;
 
 			public int RID { get; }
@@ -124,47 +113,41 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public void OnMemberForwardedClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, implMap.MemberForwarded, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, implMap.MemberForwarded, protocol: "metadata")));
 			}
 
 			string memberForwardedTooltip;
-			public string MemberForwardedTooltip => GenerateTooltip(ref memberForwardedTooltip, module, implMap.MemberForwarded);
+			public string MemberForwardedTooltip => GenerateTooltip(ref memberForwardedTooltip, metadataFile, implMap.MemberForwarded);
 
 			[ColumnInfo("X8", Kind = ColumnKind.Token)]
 			public int ImportScope => MetadataTokens.GetToken(implMap.ImportScope);
 
 			public void OnImportScopeClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, implMap.ImportScope, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, implMap.ImportScope, protocol: "metadata")));
 			}
 
 			string importScopeTooltip;
-			public string ImportScopeTooltip => GenerateTooltip(ref importScopeTooltip, module, implMap.ImportScope);
+			public string ImportScopeTooltip => GenerateTooltip(ref importScopeTooltip, metadataFile, implMap.ImportScope);
 
-			public string ImportName => metadata.GetString(implMap.ImportName);
+			public string ImportName => metadataFile.Metadata.GetString(implMap.ImportName);
 
 			public string ImportNameTooltip => $"{MetadataTokens.GetHeapOffset(implMap.ImportName):X} \"{ImportName}\"";
 
-			public ImplMapEntry(PEFile module, ReadOnlySpan<byte> span, int metadataOffset, int row)
+			public ImplMapEntry(MetadataFile metadataFile, ReadOnlySpan<byte> span, int row)
 			{
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadataFile = metadataFile;
 				this.RID = row;
-				var rowOffset = metadata.GetTableMetadataOffset(TableIndex.ImplMap)
-					+ metadata.GetTableRowSize(TableIndex.ImplMap) * (row - 1);
-				this.Offset = metadataOffset + rowOffset;
-				int moduleRefSize = metadata.GetTableRowCount(TableIndex.ModuleRef) < ushort.MaxValue ? 2 : 4;
-				int memberForwardedTagRefSize = metadata.ComputeCodedTokenSize(32768, TableMask.MethodDef | TableMask.Field);
-				int stringHandleSize = metadata.GetHeapSize(HeapIndex.String) < ushort.MaxValue ? 2 : 4;
+				var rowOffset = metadataFile.Metadata.GetTableMetadataOffset(TableIndex.ImplMap)
+					+ metadataFile.Metadata.GetTableRowSize(TableIndex.ImplMap) * (row - 1);
+				this.Offset = metadataFile.MetadataOffset + rowOffset;
+				int moduleRefSize = metadataFile.Metadata.GetTableRowCount(TableIndex.ModuleRef) < ushort.MaxValue ? 2 : 4;
+				int memberForwardedTagRefSize = metadataFile.Metadata.ComputeCodedTokenSize(32768, TableMask.MethodDef | TableMask.Field);
+				int stringHandleSize = metadataFile.Metadata.GetHeapSize(HeapIndex.String) < ushort.MaxValue ? 2 : 4;
 				this.implMap = new ImplMap(span.Slice(rowOffset), moduleRefSize, memberForwardedTagRefSize, stringHandleSize);
 				this.importScopeTooltip = null;
 				this.memberForwardedTooltip = null;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "ImplMap");
 		}
 	}
 }

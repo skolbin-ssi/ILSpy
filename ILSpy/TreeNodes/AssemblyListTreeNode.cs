@@ -17,6 +17,7 @@
 // DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Windows;
@@ -25,8 +26,10 @@ using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.Metadata;
 using ICSharpCode.Decompiler.TypeSystem;
 using ICSharpCode.Decompiler.Util;
+using ICSharpCode.ILSpy.AssemblyTree;
 using ICSharpCode.ILSpyX;
-using ICSharpCode.TreeView;
+using ICSharpCode.ILSpyX.TreeView;
+using ICSharpCode.ILSpyX.TreeView.PlatformAbstractions;
 
 namespace ICSharpCode.ILSpy.TreeNodes
 {
@@ -44,7 +47,10 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public AssemblyListTreeNode(AssemblyList assemblyList)
 		{
-			this.assemblyList = assemblyList ?? throw new ArgumentNullException(nameof(assemblyList));
+			ArgumentNullException.ThrowIfNull(assemblyList);
+
+			this.assemblyList = assemblyList;
+
 			BindToObservableCollection(assemblyList);
 		}
 
@@ -81,21 +87,18 @@ namespace ICSharpCode.ILSpy.TreeNodes
 			};
 		}
 
-		public override bool CanDrop(DragEventArgs e, int index)
+		public override bool CanDrop(IPlatformDragEventArgs e, int index)
 		{
-			e.Effects = DragDropEffects.Move | DragDropEffects.Copy | DragDropEffects.Link;
+			e.Effects = XPlatDragDropEffects.Move | XPlatDragDropEffects.Copy | XPlatDragDropEffects.Link;
 			if (e.Data.GetDataPresent(AssemblyTreeNode.DataFormat))
 				return true;
-			else if (e.Data.GetDataPresent(DataFormats.FileDrop))
+			if (e.Data.GetDataPresent(DataFormats.FileDrop))
 				return true;
-			else
-			{
-				e.Effects = DragDropEffects.None;
-				return false;
-			}
+			e.Effects = XPlatDragDropEffects.None;
+			return false;
 		}
 
-		public override void Drop(DragEventArgs e, int index)
+		public override void Drop(IPlatformDragEventArgs e, int index)
 		{
 			string[] files = e.Data.GetData(AssemblyTreeNode.DataFormat) as string[];
 			if (files == null)
@@ -109,8 +112,8 @@ namespace ICSharpCode.ILSpy.TreeNodes
 					.Distinct()
 					.ToArray();
 				assemblyList.Move(assemblies, index);
-				var nodes = assemblies.SelectArray(MainWindow.Instance.FindTreeNode);
-				MainWindow.Instance.SelectNodes(nodes);
+				var nodes = assemblies.SelectArray(AssemblyTreeModel.FindTreeNode);
+				AssemblyTreeModel.SelectNodes(nodes);
 			}
 		}
 
@@ -165,10 +168,10 @@ namespace ICSharpCode.ILSpy.TreeNodes
 
 		public AssemblyTreeNode FindAssemblyNode(IModule module)
 		{
-			return FindAssemblyNode(module.PEFile);
+			return FindAssemblyNode(module.MetadataFile);
 		}
 
-		public AssemblyTreeNode FindAssemblyNode(PEFile module)
+		public AssemblyTreeNode FindAssemblyNode(MetadataFile module)
 		{
 			if (module == null)
 				return null;

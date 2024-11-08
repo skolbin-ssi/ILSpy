@@ -20,23 +20,16 @@ using System.Collections.Generic;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 
-using ICSharpCode.Decompiler;
-using ICSharpCode.Decompiler.Disassembler;
-using ICSharpCode.Decompiler.IL;
 using ICSharpCode.Decompiler.Metadata;
 
 namespace ICSharpCode.ILSpy.Metadata
 {
 	class CustomAttributeTableTreeNode : MetadataTableTreeNode
 	{
-		public CustomAttributeTableTreeNode(PEFile module)
-			: base(HandleKind.CustomAttribute, module)
+		public CustomAttributeTableTreeNode(MetadataFile metadataFile)
+			: base(TableIndex.CustomAttribute, metadataFile)
 		{
 		}
-
-		public override object Text => $"0C CustomAttribute ({module.Metadata.GetTableRowCount(TableIndex.CustomAttribute)})";
-
-		public override object Icon => Images.Literal;
 
 		public override bool View(ViewModels.TabPageModel tabPage)
 		{
@@ -44,14 +37,14 @@ namespace ICSharpCode.ILSpy.Metadata
 			tabPage.SupportsLanguageSwitching = false;
 
 			var view = Helpers.PrepareDataGrid(tabPage, this);
-			var metadata = module.Metadata;
+			var metadata = metadataFile.Metadata;
 
 			var list = new List<CustomAttributeEntry>();
 			CustomAttributeEntry scrollTargetEntry = default;
 
 			foreach (var row in metadata.CustomAttributes)
 			{
-				CustomAttributeEntry entry = new CustomAttributeEntry(module, row);
+				CustomAttributeEntry entry = new CustomAttributeEntry(metadataFile, row);
 				if (scrollTarget == MetadataTokens.GetRowNumber(row))
 				{
 					scrollTargetEntry = entry;
@@ -73,9 +66,7 @@ namespace ICSharpCode.ILSpy.Metadata
 
 		struct CustomAttributeEntry
 		{
-			readonly int metadataOffset;
-			readonly PEFile module;
-			readonly MetadataReader metadata;
+			readonly MetadataFile metadataFile;
 			readonly CustomAttributeHandle handle;
 			readonly CustomAttribute customAttr;
 
@@ -83,31 +74,31 @@ namespace ICSharpCode.ILSpy.Metadata
 
 			public int Token => MetadataTokens.GetToken(handle);
 
-			public int Offset => metadataOffset
-				+ metadata.GetTableMetadataOffset(TableIndex.CustomAttribute)
-				+ metadata.GetTableRowSize(TableIndex.CustomAttribute) * (RID - 1);
+			public int Offset => metadataFile.MetadataOffset
+				+ metadataFile.Metadata.GetTableMetadataOffset(TableIndex.CustomAttribute)
+				+ metadataFile.Metadata.GetTableRowSize(TableIndex.CustomAttribute) * (RID - 1);
 
 			[ColumnInfo("X8", Kind = ColumnKind.Token)]
 			public int Parent => MetadataTokens.GetToken(customAttr.Parent);
 
 			public void OnParentClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, customAttr.Parent, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, customAttr.Parent, protocol: "metadata")));
 			}
 
 			string parentTooltip;
-			public string ParentTooltip => GenerateTooltip(ref parentTooltip, module, customAttr.Parent);
+			public string ParentTooltip => GenerateTooltip(ref parentTooltip, metadataFile, customAttr.Parent);
 
 			[ColumnInfo("X8", Kind = ColumnKind.Token)]
 			public int Constructor => MetadataTokens.GetToken(customAttr.Constructor);
 
 			public void OnConstructorClick()
 			{
-				MainWindow.Instance.JumpToReference(new EntityReference(module, customAttr.Constructor, protocol: "metadata"));
+				MessageBus.Send(this, new NavigateToReferenceEventArgs(new EntityReference(metadataFile, customAttr.Constructor, protocol: "metadata")));
 			}
 
 			string constructorTooltip;
-			public string ConstructorTooltip => GenerateTooltip(ref constructorTooltip, module, customAttr.Constructor);
+			public string ConstructorTooltip => GenerateTooltip(ref constructorTooltip, metadataFile, customAttr.Constructor);
 
 			[ColumnInfo("X8", Kind = ColumnKind.HeapOffset)]
 			public int Value => MetadataTokens.GetHeapOffset(customAttr.Value);
@@ -118,21 +109,14 @@ namespace ICSharpCode.ILSpy.Metadata
 				}
 			}
 
-			public CustomAttributeEntry(PEFile module, CustomAttributeHandle handle)
+			public CustomAttributeEntry(MetadataFile metadataFile, CustomAttributeHandle handle)
 			{
-				this.metadataOffset = module.Reader.PEHeaders.MetadataStartOffset;
-				this.module = module;
-				this.metadata = module.Metadata;
+				this.metadataFile = metadataFile;
 				this.handle = handle;
-				this.customAttr = metadata.GetCustomAttribute(handle);
+				this.customAttr = metadataFile.Metadata.GetCustomAttribute(handle);
 				this.parentTooltip = null;
 				this.constructorTooltip = null;
 			}
-		}
-
-		public override void Decompile(Language language, ITextOutput output, DecompilationOptions options)
-		{
-			language.WriteCommentLine(output, "CustomAttributes");
 		}
 	}
 }

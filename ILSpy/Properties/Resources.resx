@@ -282,6 +282,9 @@ Are you sure you want to continue?</value>
   <data name="DecompilerSettings.AsyncEnumerator" xml:space="preserve">
     <value>Decompile async IAsyncEnumerator methods</value>
   </data>
+  <data name="DecompilerSettings.AutoLoadAssemblyReferences" xml:space="preserve">
+    <value>Automatically load assembly references</value>
+  </data>
   <data name="DecompilerSettings.CheckedOperators" xml:space="preserve">
     <value>User-defined checked operators</value>
   </data>
@@ -405,9 +408,6 @@ Are you sure you want to continue?</value>
   <data name="DecompilerSettings.Other" xml:space="preserve">
     <value>Other</value>
   </data>
-  <data name="DecompilerSettings.ParameterNullCheck" xml:space="preserve">
-    <value>Use parameter null checking</value>
-  </data>
   <data name="DecompilerSettings.PatternCombinators" xml:space="preserve">
     <value>Pattern combinators (and, or, not)</value>
   </data>
@@ -431,6 +431,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.RecursivePatternMatching" xml:space="preserve">
     <value>Recursive pattern matching</value>
+  </data>
+  <data name="DecompilerSettings.RefReadOnlyParameters" xml:space="preserve">
+    <value>'ref readonly' parameters</value>
   </data>
   <data name="DecompilerSettings.RelationalPatterns" xml:space="preserve">
     <value>Relational patterns</value>
@@ -512,6 +515,9 @@ Are you sure you want to continue?</value>
   </data>
   <data name="DecompilerSettings.UsePatternBasedFixedStatement" xml:space="preserve">
     <value>Use pattern-based fixed statement</value>
+  </data>
+  <data name="DecompilerSettings.UsePrimaryConstructorDecompilerSettings.SyntaxForNonRecordTypes" xml:space="preserve">
+    <value>Use primary constructor syntax for non-record types</value>
   </data>
   <data name="DecompilerSettings.UsePrimaryConstructorSyntax" xml:space="preserve">
     <value>Use primary constructor  syntax with records</value>
